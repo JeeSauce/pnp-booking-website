@@ -93,3 +93,8 @@ technicians. `.env.local` contains ignored local-only Supabase values.
 **Phase 3 — Client Booking.** Build service and technician selection, the tested
 `Asia/Manila` availability engine, client details/policy acceptance, private reference-photo
 upload, atomic booking creation with final slot recheck, and confirmation/payment instructions.
+
+See **[docs/PHASE3.md](PHASE3.md)** for the full kickoff spec: the availability engine
+contract, the public booking flow, safety-critical atomic booking creation (with the
+double-booking exclusion constraint as the race guard), the QR confirmation page,
+required tests, and the Phase 3 definition of done.
