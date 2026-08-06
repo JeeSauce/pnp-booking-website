@@ -1,319 +1,674 @@
-/**
- * Hand-authored Supabase schema types for Phase 1.
- *
- * This mirrors supabase/migrations exactly. Once a Supabase project is linked,
- * regenerate with:
- *   npx supabase gen types typescript --linked > src/types/database.ts
- * and keep it in sync with new migrations.
- */
-
-export type BookingStatus = "confirmed" | "completed" | "cancelled_by_admin" | "no_show";
-export type PaymentStatus = "unverified" | "verified" | "waived" | "refunded";
-export type UserRole = "owner" | "technician";
-export type CalendarSyncStatus = "pending" | "synced" | "failed" | "not_connected";
-export type NotificationType =
-  | "booking_confirmation"
-  | "new_booking_admin"
-  | "reminder_24h"
-  | "reminder_2h"
-  | "payment_verified"
-  | "cancelled_by_admin"
-  | "rescheduled_by_admin";
-
-type Timestamps = {
-  created_at: string;
-  updated_at: string;
-};
+﻿export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never;
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json;
+          operationName?: string;
+          query?: string;
+          variables?: Json;
+        };
+        Returns: Json;
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
   public: {
     Tables: {
-      profiles: {
+      availability_overrides: {
         Row: {
-          id: string;
-          full_name: string;
-          email: string;
-          role: UserRole;
-          active: boolean;
-        } & Timestamps;
-        Insert: {
-          id: string;
-          full_name: string;
-          email: string;
-          role?: UserRole;
-          active?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
-        Relationships: [];
-      };
-      business_settings: {
-        Row: {
-          id: string;
-          business_name: string;
-          timezone: string;
-          address: string | null;
-          facebook_url: string | null;
-          maribank_account_name: string | null;
-          maribank_qr_path: string | null;
-          payment_amount_note: string | null;
-          minimum_notice_minutes: number;
-          booking_window_weeks: number;
-          slot_interval_minutes: number;
-          default_buffer_minutes: number;
-          cancellation_policy: string | null;
-          notification_email: string | null;
-        } & Timestamps;
-        Insert: {
-          id?: string;
-          business_name: string;
-          timezone?: string;
-          address?: string | null;
-          facebook_url?: string | null;
-          maribank_account_name?: string | null;
-          maribank_qr_path?: string | null;
-          payment_amount_note?: string | null;
-          minimum_notice_minutes?: number;
-          booking_window_weeks?: number;
-          slot_interval_minutes?: number;
-          default_buffer_minutes?: number;
-          cancellation_policy?: string | null;
-          notification_email?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["business_settings"]["Insert"]>;
-        Relationships: [];
-      };
-      services: {
-        Row: {
-          id: string;
-          name: string;
-          description: string | null;
-          preparation_instructions: string | null;
-          duration_minutes: number;
-          price: number;
-          active: boolean;
-          sort_order: number;
-        } & Timestamps;
-        Insert: {
-          id?: string;
-          name: string;
-          description?: string | null;
-          preparation_instructions?: string | null;
-          duration_minutes?: number;
-          price: number;
-          active?: boolean;
-          sort_order?: number;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["services"]["Insert"]>;
-        Relationships: [];
-      };
-      technician_services: {
-        Row: {
-          technician_id: string;
-          service_id: string;
           created_at: string;
+          date: string;
+          end_time: string | null;
+          id: string;
+          is_available: boolean;
+          reason: string | null;
+          start_time: string | null;
+          technician_id: string;
         };
         Insert: {
-          technician_id: string;
-          service_id: string;
           created_at?: string;
+          date: string;
+          end_time?: string | null;
+          id?: string;
+          is_available?: boolean;
+          reason?: string | null;
+          start_time?: string | null;
+          technician_id: string;
         };
-        Update: Partial<Database["public"]["Tables"]["technician_services"]["Insert"]>;
-        Relationships: [];
+        Update: {
+          created_at?: string;
+          date?: string;
+          end_time?: string | null;
+          id?: string;
+          is_available?: boolean;
+          reason?: string | null;
+          start_time?: string | null;
+          technician_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "availability_overrides_technician_id_fkey";
+            columns: ["technician_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       availability_rules: {
         Row: {
-          id: string;
-          technician_id: string;
-          weekday: number;
-          start_time: string;
-          end_time: string;
           active: boolean;
           created_at: string;
-        };
-        Insert: {
-          id?: string;
+          end_time: string;
+          id: string;
+          start_time: string;
           technician_id: string;
           weekday: number;
-          start_time: string;
-          end_time: string;
-          active?: boolean;
-          created_at?: string;
-        };
-        Update: Partial<Database["public"]["Tables"]["availability_rules"]["Insert"]>;
-        Relationships: [];
-      };
-      availability_overrides: {
-        Row: {
-          id: string;
-          technician_id: string;
-          date: string;
-          is_available: boolean;
-          start_time: string | null;
-          end_time: string | null;
-          reason: string | null;
-          created_at: string;
         };
         Insert: {
-          id?: string;
-          technician_id: string;
-          date: string;
-          is_available?: boolean;
-          start_time?: string | null;
-          end_time?: string | null;
-          reason?: string | null;
+          active?: boolean;
           created_at?: string;
+          end_time: string;
+          id?: string;
+          start_time: string;
+          technician_id: string;
+          weekday: number;
         };
-        Update: Partial<Database["public"]["Tables"]["availability_overrides"]["Insert"]>;
-        Relationships: [];
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          end_time?: string;
+          id?: string;
+          start_time?: string;
+          technician_id?: string;
+          weekday?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "availability_rules_technician_id_fkey";
+            columns: ["technician_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       blocked_periods: {
         Row: {
-          id: string;
-          technician_id: string;
-          starts_at: string;
-          ends_at: string;
-          reason: string | null;
-          created_by: string | null;
           created_at: string;
+          created_by: string | null;
+          ends_at: string;
+          id: string;
+          reason: string | null;
+          starts_at: string;
+          technician_id: string;
         };
         Insert: {
-          id?: string;
-          technician_id: string;
-          starts_at: string;
-          ends_at: string;
-          reason?: string | null;
-          created_by?: string | null;
           created_at?: string;
+          created_by?: string | null;
+          ends_at: string;
+          id?: string;
+          reason?: string | null;
+          starts_at: string;
+          technician_id: string;
         };
-        Update: Partial<Database["public"]["Tables"]["blocked_periods"]["Insert"]>;
-        Relationships: [];
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          ends_at?: string;
+          id?: string;
+          reason?: string | null;
+          starts_at?: string;
+          technician_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "blocked_periods_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "blocked_periods_technician_id_fkey";
+            columns: ["technician_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       bookings: {
         Row: {
-          id: string;
           booking_code: string;
-          service_id: string;
-          technician_id: string;
-          client_name: string;
+          calendar_sync_status: Database["public"]["Enums"]["calendar_sync_status"];
           client_email: string;
-          client_phone: string;
+          client_name: string;
           client_notes: string | null;
-          reference_photo_path: string | null;
-          starts_at: string;
-          ends_at: string;
-          status: BookingStatus;
-          payment_status: PaymentStatus;
-          price_snapshot: number;
-          duration_snapshot: number;
-          policy_accepted_at: string | null;
-          google_event_id: string | null;
-          calendar_sync_status: CalendarSyncStatus;
-          created_by: string | null;
-        } & Timestamps;
-        Insert: {
-          id?: string;
-          booking_code?: string;
-          service_id: string;
-          technician_id: string;
-          client_name: string;
-          client_email: string;
           client_phone: string;
-          client_notes?: string | null;
-          reference_photo_path?: string | null;
-          starts_at: string;
-          ends_at: string;
-          status?: BookingStatus;
-          payment_status?: PaymentStatus;
-          price_snapshot: number;
+          created_at: string;
+          created_by: string | null;
           duration_snapshot: number;
-          policy_accepted_at?: string | null;
-          google_event_id?: string | null;
-          calendar_sync_status?: CalendarSyncStatus;
-          created_by?: string | null;
+          ends_at: string;
+          google_event_id: string | null;
+          id: string;
+          payment_status: Database["public"]["Enums"]["payment_status"];
+          policy_accepted_at: string | null;
+          price_snapshot: number;
+          reference_photo_path: string | null;
+          service_id: string;
+          starts_at: string;
+          status: Database["public"]["Enums"]["booking_status"];
+          technician_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          booking_code?: string;
+          calendar_sync_status?: Database["public"]["Enums"]["calendar_sync_status"];
+          client_email: string;
+          client_name: string;
+          client_notes?: string | null;
+          client_phone: string;
           created_at?: string;
+          created_by?: string | null;
+          duration_snapshot: number;
+          ends_at: string;
+          google_event_id?: string | null;
+          id?: string;
+          payment_status?: Database["public"]["Enums"]["payment_status"];
+          policy_accepted_at?: string | null;
+          price_snapshot: number;
+          reference_photo_path?: string | null;
+          service_id: string;
+          starts_at: string;
+          status?: Database["public"]["Enums"]["booking_status"];
+          technician_id: string;
           updated_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["bookings"]["Insert"]>;
+        Update: {
+          booking_code?: string;
+          calendar_sync_status?: Database["public"]["Enums"]["calendar_sync_status"];
+          client_email?: string;
+          client_name?: string;
+          client_notes?: string | null;
+          client_phone?: string;
+          created_at?: string;
+          created_by?: string | null;
+          duration_snapshot?: number;
+          ends_at?: string;
+          google_event_id?: string | null;
+          id?: string;
+          payment_status?: Database["public"]["Enums"]["payment_status"];
+          policy_accepted_at?: string | null;
+          price_snapshot?: number;
+          reference_photo_path?: string | null;
+          service_id?: string;
+          starts_at?: string;
+          status?: Database["public"]["Enums"]["booking_status"];
+          technician_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "bookings_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bookings_service_id_fkey";
+            columns: ["service_id"];
+            isOneToOne: false;
+            referencedRelation: "services";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bookings_technician_id_fkey";
+            columns: ["technician_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      business_settings: {
+        Row: {
+          address: string | null;
+          booking_window_weeks: number;
+          business_name: string;
+          cancellation_policy: string | null;
+          created_at: string;
+          default_buffer_minutes: number;
+          facebook_url: string | null;
+          id: string;
+          maribank_account_name: string | null;
+          maribank_qr_path: string | null;
+          minimum_notice_minutes: number;
+          notification_email: string | null;
+          payment_amount_note: string | null;
+          slot_interval_minutes: number;
+          timezone: string;
+          updated_at: string;
+        };
+        Insert: {
+          address?: string | null;
+          booking_window_weeks?: number;
+          business_name?: string;
+          cancellation_policy?: string | null;
+          created_at?: string;
+          default_buffer_minutes?: number;
+          facebook_url?: string | null;
+          id?: string;
+          maribank_account_name?: string | null;
+          maribank_qr_path?: string | null;
+          minimum_notice_minutes?: number;
+          notification_email?: string | null;
+          payment_amount_note?: string | null;
+          slot_interval_minutes?: number;
+          timezone?: string;
+          updated_at?: string;
+        };
+        Update: {
+          address?: string | null;
+          booking_window_weeks?: number;
+          business_name?: string;
+          cancellation_policy?: string | null;
+          created_at?: string;
+          default_buffer_minutes?: number;
+          facebook_url?: string | null;
+          id?: string;
+          maribank_account_name?: string | null;
+          maribank_qr_path?: string | null;
+          minimum_notice_minutes?: number;
+          notification_email?: string | null;
+          payment_amount_note?: string | null;
+          slot_interval_minutes?: number;
+          timezone?: string;
+          updated_at?: string;
+        };
         Relationships: [];
       };
       calendar_connections: {
         Row: {
+          access_token: string;
+          calendar_id: string;
+          created_at: string;
           id: string;
-          technician_id: string;
-          calendar_id: string;
-          access_token: string;
           refresh_token: string;
-          token_expires_at: string | null;
           scope: string | null;
-        } & Timestamps;
-        Insert: {
-          id?: string;
           technician_id: string;
-          calendar_id: string;
+          token_expires_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
           access_token: string;
-          refresh_token: string;
-          token_expires_at?: string | null;
-          scope?: string | null;
+          calendar_id?: string;
           created_at?: string;
+          id?: string;
+          refresh_token: string;
+          scope?: string | null;
+          technician_id: string;
+          token_expires_at?: string | null;
           updated_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["calendar_connections"]["Insert"]>;
-        Relationships: [];
+        Update: {
+          access_token?: string;
+          calendar_id?: string;
+          created_at?: string;
+          id?: string;
+          refresh_token?: string;
+          scope?: string | null;
+          technician_id?: string;
+          token_expires_at?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "calendar_connections_technician_id_fkey";
+            columns: ["technician_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       notification_log: {
         Row: {
-          id: string;
           booking_id: string | null;
-          notification_type: NotificationType;
+          created_at: string;
+          id: string;
+          notification_type: Database["public"]["Enums"]["notification_type"];
+          provider_message_id: string | null;
           recipient: string;
           sent_at: string | null;
-          provider_message_id: string | null;
           status: string;
-          created_at: string;
         };
         Insert: {
-          id?: string;
           booking_id?: string | null;
-          notification_type: NotificationType;
+          created_at?: string;
+          id?: string;
+          notification_type: Database["public"]["Enums"]["notification_type"];
+          provider_message_id?: string | null;
           recipient: string;
           sent_at?: string | null;
-          provider_message_id?: string | null;
           status?: string;
-          created_at?: string;
         };
-        Update: Partial<Database["public"]["Tables"]["notification_log"]["Insert"]>;
+        Update: {
+          booking_id?: string | null;
+          created_at?: string;
+          id?: string;
+          notification_type?: Database["public"]["Enums"]["notification_type"];
+          provider_message_id?: string | null;
+          recipient?: string;
+          sent_at?: string | null;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notification_log_booking_id_fkey";
+            columns: ["booking_id"];
+            isOneToOne: false;
+            referencedRelation: "bookings";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      profiles: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          email: string;
+          full_name: string;
+          id: string;
+          role: Database["public"]["Enums"]["user_role"];
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          email: string;
+          full_name?: string;
+          id: string;
+          role?: Database["public"]["Enums"]["user_role"];
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          email?: string;
+          full_name?: string;
+          id?: string;
+          role?: Database["public"]["Enums"]["user_role"];
+          updated_at?: string;
+        };
         Relationships: [];
       };
-    };
-    Views: Record<string, never>;
-    Functions: {
-      current_user_role: {
-        Args: Record<string, never>;
-        Returns: UserRole;
+      services: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          description: string | null;
+          duration_minutes: number;
+          id: string;
+          name: string;
+          preparation_instructions: string | null;
+          price: number;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          description?: string | null;
+          duration_minutes?: number;
+          id?: string;
+          name: string;
+          preparation_instructions?: string | null;
+          price: number;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          description?: string | null;
+          duration_minutes?: number;
+          id?: string;
+          name?: string;
+          preparation_instructions?: string | null;
+          price?: number;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      technician_services: {
+        Row: {
+          created_at: string;
+          service_id: string;
+          technician_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          service_id: string;
+          technician_id: string;
+        };
+        Update: {
+          created_at?: string;
+          service_id?: string;
+          technician_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "technician_services_service_id_fkey";
+            columns: ["service_id"];
+            isOneToOne: false;
+            referencedRelation: "services";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "technician_services_technician_id_fkey";
+            columns: ["technician_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      current_user_role: {
+        Args: never;
+        Returns: Database["public"]["Enums"]["user_role"];
+      };
+      gen_booking_code: { Args: never; Returns: string };
+      is_owner: { Args: never; Returns: boolean };
+      promote_to_owner: { Args: { target_email: string }; Returns: undefined };
+    };
     Enums: {
-      booking_status: BookingStatus;
-      payment_status: PaymentStatus;
-      user_role: UserRole;
-      calendar_sync_status: CalendarSyncStatus;
-      notification_type: NotificationType;
+      booking_status: "confirmed" | "completed" | "cancelled_by_admin" | "no_show";
+      calendar_sync_status: "pending" | "synced" | "failed" | "not_connected";
+      notification_type:
+        | "booking_confirmation"
+        | "new_booking_admin"
+        | "reminder_24h"
+        | "reminder_2h"
+        | "payment_verified"
+        | "cancelled_by_admin"
+        | "rescheduled_by_admin";
+      payment_status: "unverified" | "verified" | "waived" | "refunded";
+      user_role: "owner" | "technician";
+    };
+    CompositeTypes: {
+      [_ in never]: never;
     };
   };
 };
 
-/** Convenience row aliases. */
-export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
-export type BusinessSettings = Database["public"]["Tables"]["business_settings"]["Row"];
-export type Service = Database["public"]["Tables"]["services"]["Row"];
-export type AvailabilityRule = Database["public"]["Tables"]["availability_rules"]["Row"];
-export type AvailabilityOverride = Database["public"]["Tables"]["availability_overrides"]["Row"];
-export type BlockedPeriod = Database["public"]["Tables"]["blocked_periods"]["Row"];
-export type Booking = Database["public"]["Tables"]["bookings"]["Row"];
-export type NotificationLogEntry = Database["public"]["Tables"]["notification_log"]["Row"];
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R;
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R;
+      }
+      ? R
+      : never
+    : never;
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I;
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I;
+      }
+      ? I
+      : never
+    : never;
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never) = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U;
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U;
+      }
+      ? U
+      : never
+    : never;
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never) = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never;
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never) = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never;
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {
+      booking_status: ["confirmed", "completed", "cancelled_by_admin", "no_show"],
+      calendar_sync_status: ["pending", "synced", "failed", "not_connected"],
+      notification_type: [
+        "booking_confirmation",
+        "new_booking_admin",
+        "reminder_24h",
+        "reminder_2h",
+        "payment_verified",
+        "cancelled_by_admin",
+        "rescheduled_by_admin",
+      ],
+      payment_status: ["unverified", "verified", "waived", "refunded"],
+      user_role: ["owner", "technician"],
+    },
+  },
+} as const;
+
+/** Project-level aliases retained around the generated Supabase schema types. */
+export type UserRole = Enums<"user_role">;
+export type BookingStatus = Enums<"booking_status">;
+export type PaymentStatus = Enums<"payment_status">;
+export type CalendarSyncStatus = Enums<"calendar_sync_status">;
+export type NotificationType = Enums<"notification_type">;
+
+export type Profile = Tables<"profiles">;
+export type BusinessSettings = Tables<"business_settings">;
+export type Service = Tables<"services">;
+export type AvailabilityRule = Tables<"availability_rules">;
+export type AvailabilityOverride = Tables<"availability_overrides">;
+export type BlockedPeriod = Tables<"blocked_periods">;
+export type Booking = Tables<"bookings">;
+export type NotificationLogEntry = Tables<"notification_log">;
