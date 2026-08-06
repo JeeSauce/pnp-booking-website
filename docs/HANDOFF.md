@@ -2,99 +2,55 @@
 
 ## Completed
 
-**Phase 2 — Admin Setup** is complete on `feat/phase-2-admin`.
+**Phase 3 — Client Booking** is complete on `feat/phase-3-booking`.
 
-- Repaired the Windows/Docker prerequisite, started the local Supabase stack, and applied
-  migrations plus seed data with repeatable `supabase db reset` runs.
-- Created one local owner and two local technician Auth users and confirmed the profile
-  trigger, trusted owner promotion, and active roles.
-- Added owner-only Services management: create, edit, activate/deactivate, reorder, and
-  immediate public-site revalidation.
-- Added owner-only Team management: create confirmed technician Auth users through the
-  server-only service role, edit names/status, and assign services.
-- Added owner/technician Availability management: multiple recurring weekly periods and
-  date-specific available/unavailable overrides, all scoped in both app code and RLS.
-- Added owner/technician Blocked Dates management for full-day and partial-day periods,
-  stored as UTC instants converted from `Asia/Manila`.
-- Added owner-only Business Settings for studio, booking, payment, policy, Facebook, and
-  notification fields.
-- Added MariBank QR upload to the public `business-assets` bucket with file validation and
-  an undistorted, padded `next/image` preview. No fake QR was uploaded.
-- Enabled the Phase 2 owner and technician navigation entries and added shared loading,
-  empty, success, error, confirmation, and responsive states.
-- Browser-verified public, owner, technician, route-guard, server-action, public
-  revalidation, and 390px mobile flows with no Next.js error overlay or horizontal overflow.
+- Added one pure `Asia/Manila` availability engine built on the existing time helpers. It handles multiple weekly periods, date overrides, manual blocks, active bookings, injected future Google busy intervals, service duration, buffer, minimum notice, booking window, and slot interval.
+- Replaced `/book` with a mobile-first flow for service, assigned active technician, server-computed date/time, required client details, optional private reference photo, no-cancellation acceptance, review, and confirmation.
+- Added a no-store slot API that validates IDs/date and returns computed slots only. Raw technician schedules never leave trusted server code.
+- Added trusted booking creation that revalidates all fields, reloads service/technician/settings, rechecks the same engine, snapshots price/duration, uploads an optional photo privately, inserts through the service role, and maps SQLSTATE `23P01` to a clean slot-conflict response.
+- New bookings are `confirmed` / `unverified`, record `policy_accepted_at`, and use `calendar_sync_status='not_connected'`. No email or Google call is made in Phase 3.
+- Added `/book/confirmation/[booking_code]` with appointment details, reserved/payment-awaiting-verification messaging, account/amount, Facebook Messenger receipt CTA, and an unoptimized `object-contain` MariBank QR with preserved padding/quiet zone.
+- Kept all client cancellation/reschedule controls out of the public experience.
 
 ## Files changed
 
-- Database: `supabase/migrations/0004_harden_database_access.sql`,
-  `supabase/tests/0001_phase2_rls.sql`, regenerated `src/types/database.ts`.
-- Services: `src/app/(dashboard)/dashboard/services/*`.
-- Team: `src/app/(dashboard)/dashboard/team/*`.
-- Availability: `src/app/(dashboard)/dashboard/availability/*`.
-- Blocked periods: `src/app/(dashboard)/dashboard/blocked-dates/*`.
-- Business settings / QR: `src/app/(dashboard)/dashboard/settings/*`, `next.config.ts`.
-- Shared UI: dashboard page header, action notice, submit/confirm controls, select,
-  textarea, loading and error boundaries.
-- Validation/tests: Phase 2 Zod modules and `src/lib/validation/phase2.test.ts`.
-- Navigation/config/docs: `nav-items.ts`, `eslint.config.mjs`, `docs/SETUP.md`, this file.
+- Availability: `src/lib/availability/engine.ts`, `engine.test.ts`.
+- Booking server boundary: `src/lib/bookings/*`, `src/lib/data/booking.ts`, `src/lib/validation/booking.ts`, `/api/availability`, `/book/actions.ts`.
+- Public UI: `src/components/booking/booking-flow.tsx`, `/book` loading/error/page files, confirmation route.
+- Tests: `src/lib/bookings/create.integration.test.ts`, `src/test/server-only.ts`, `vitest.config.mts`, `supabase/tests/0002_phase3_booking.sql`.
+- Documentation: `docs/SETUP.md`, this file.
 
 ## Database changes
 
-`0004_harden_database_access.sql`:
-
-- Grants normal PostgREST DML privileges so authenticated requests reach RLS policies.
-- Limits anonymous table reads to the public catalog/settings tables.
-- Forces every trigger-created profile to start as `technician`; signup metadata cannot
-  create an owner.
-- Restricts `promote_to_owner(text)` execution to `service_role`.
-- Prevents technicians from changing their own email, role, or active status.
-- Adds a GiST exclusion constraint preventing overlapping active recurring periods for the
-  same technician and weekday.
-- Adds one date override per technician/date.
-- Adds safe default table privileges for future authenticated/service-role tables; future
-  migrations must still enable and define RLS.
-
-Local database state: seed settings + four demo services, one active owner, two active
-technicians. `.env.local` contains ignored local-only Supabase values.
+- No schema change was required; the existing bookings fields, strict RLS, private `reference-photos` bucket, and `bookings_no_overlap` GiST exclusion constraint already satisfy Phase 3.
+- No `0005_*` migration was added and `src/types/database.ts` did not need regeneration.
+- Added pgTAP coverage only; production database structure is unchanged.
 
 ## Commands run
 
 - `npx supabase start`
-- `npx supabase db reset` (clean migration/seed verification)
-- `npx supabase gen types typescript --local`
-- `npx supabase test db`
+- `npx supabase db reset`
 - `npm run format`
 - `npm run lint`
 - `npm run typecheck`
 - `npm run test`
 - `npm run build`
-- `npm run dev` + `agent-browser` owner/technician/mobile verification
+- `npx supabase test db`
 
 ## Tests
 
-- Vitest: 26 tests across Auth, Manila time helpers, and Phase 2 validation.
-- pgTAP: 19 assertions covering trigger hardening, owner visibility, technician isolation,
-  cross-technician write denial, calendar-token denial, owner-promotion ACLs, protected
-  profile fields, recurring overlap rejection, and duplicate override rejection.
-- Browser: live service creation/public visibility, technician self-service schedule write,
-  owner-route rejection for technicians, all Phase 2 route render checks, and mobile overflow.
+- Vitest: 38 passing tests across Auth/validation, Manila time helpers, the availability engine, and local service-role booking integration.
+- Availability coverage includes work periods/breaks, exact two-hour boundaries, overrides, blocks, active vs cancelled bookings, injected busy periods, minimum notice, booking-window limits, buffer, and UTC-to-Manila day boundaries.
+- Integration coverage proves a stale displayed slot is rejected and two simultaneous overlapping requests produce exactly one success and one conflict.
+- pgTAP: 26 passing assertions across Phase 2 RLS/hardening plus active-booking exclusion, cancelled-slot release, and private reference-photo read/upload policies.
+- Production Next.js build passes; `/book`, `/api/availability`, and confirmation are dynamic server routes as required.
 
 ## Known issues
 
-- A real MariBank QR was not supplied, so upload/preview is implemented but the local
-  setting remains empty.
-- Local staff credentials are disposable development data and are intentionally not
-  documented or committed.
-- Client booking, operations, Google Calendar, email, and deployment remain later phases.
+- A real MariBank QR was not supplied, so the confirmation page shows a clear contact fallback until the owner uploads one in Business Settings.
+- Google Calendar busy reads/sync and Resend notifications remain Phase 5; the engine already accepts injected busy intervals and bookings remain authoritative.
+- Phase 4 operations screens (booking calendar/list/details, payment verification, admin cancellation/rescheduling, completion/no-show) are not part of this phase.
 
 ## Recommended next task
 
-**Phase 3 — Client Booking.** Build service and technician selection, the tested
-`Asia/Manila` availability engine, client details/policy acceptance, private reference-photo
-upload, atomic booking creation with final slot recheck, and confirmation/payment instructions.
-
-See **[docs/PHASE3.md](PHASE3.md)** for the full kickoff spec: the availability engine
-contract, the public booking flow, safety-critical atomic booking creation (with the
-double-booking exclusion constraint as the race guard), the QR confirmation page,
-required tests, and the Phase 3 definition of done.
+**Phase 4 — Operations.** Build the owner/team booking calendar, booking list/details, manual payment verification, owner-only cancellation/rescheduling, and technician completion/no-show actions. Preserve the Phase 3 engine/recheck path for rescheduling and add overlap/permission tests for every booking mutation.

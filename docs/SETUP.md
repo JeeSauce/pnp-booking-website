@@ -1,8 +1,9 @@
 # Setup — Poin't & Polish Booking Website
 
 This guide gets the app running locally and connects it to Supabase. It reflects
-**Phase 2**: foundation, auth, RLS, services, team management, availability,
-blocked periods, business settings, and MariBank QR upload.
+**Phase 3**: foundation, auth, RLS, admin setup, the Manila-time availability
+engine, public client booking, private reference photos, atomic booking creation,
+and MariBank payment instructions.
 
 ## Prerequisites
 
@@ -25,7 +26,8 @@ Copy the example file and fill in real values:
 cp .env.example .env.local
 ```
 
-For Phase 2 you only need the Supabase values (the rest are for later phases):
+For Phases 1–3 you need the Supabase values below. The service-role key is
+required for public booking creation and private reference-photo uploads:
 
 | Variable                         | Where to find it                                  |
 | -------------------------------- | ------------------------------------------------- |
@@ -97,7 +99,15 @@ automatically by a database trigger (default role: `technician`).
 npm run dev
 ```
 
+The Vitest suite includes a real booking-race integration test. It runs only when
+`.env.local` points to the exact local URL `http://127.0.0.1:54321`; it skips for
+remote Supabase projects so tests never create destructive fixtures remotely.
+
+Run `npx supabase start` before `npm run test` to exercise that integration test.
+
 - Marketing site: <http://localhost:3000>
+- Client booking: <http://localhost:3000/book>
+- Confirmation: <http://localhost:3000/book/confirmation/PNP-XXXXXX>
 - Staff sign in: <http://localhost:3000/login>
 - Dashboard (after sign in): <http://localhost:3000/dashboard>
 - Services: <http://localhost:3000/dashboard/services>
@@ -144,7 +154,8 @@ npx supabase test db
 ```
 
 The pgTAP suite verifies owner-wide visibility, technician isolation, protected
-calendar tokens, profile-role hardening, and schedule-integrity constraints.
+calendar tokens, profile-role hardening, schedule/booking overlap constraints,
+cancelled-slot release, and private reference-photo access.
 
 ## Security notes
 
@@ -152,6 +163,11 @@ calendar tokens, profile-role hardening, and schedule-integrity constraints.
   only used by `src/lib/supabase/admin.ts` in trusted server code.
 - Google Calendar OAuth tokens live in `calendar_connections`, which has RLS
   enabled and **no policies** — only the service role can read them.
+- Public availability reads and booking creation run only in trusted server code.
+  The slot API returns computed starts, never raw technician schedules.
+- Anonymous clients cannot read or upload `reference-photos`. Validated uploads
+  go through the server-only service role; authenticated staff can read the
+  private bucket under RLS.
 - `promote_to_owner` is executable only by the service role. New Auth users cannot
   promote themselves through signup metadata.
 - Never commit `.env.local`. Only `.env.example` is tracked.
