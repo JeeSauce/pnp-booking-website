@@ -1,9 +1,8 @@
 # Setup — Poin't & Polish Booking Website
 
 This guide gets the app running locally and connects it to Supabase. It reflects
-**Phase 1** (foundation): project, schema, auth, roles, RLS, seed data, and the
-responsive shell. Later phases add booking, dashboard operations, Google Calendar,
-and email.
+**Phase 2**: foundation, auth, RLS, services, team management, availability,
+blocked periods, business settings, and MariBank QR upload.
 
 ## Prerequisites
 
@@ -26,7 +25,7 @@ Copy the example file and fill in real values:
 cp .env.example .env.local
 ```
 
-For Phase 1 you only need the Supabase values (the rest are for later phases):
+For Phase 2 you only need the Supabase values (the rest are for later phases):
 
 | Variable                         | Where to find it                                  |
 | -------------------------------- | ------------------------------------------------- |
@@ -70,7 +69,8 @@ In the Supabase dashboard → **SQL Editor**, run these files in order:
 1. `supabase/migrations/0001_initial_schema.sql`
 2. `supabase/migrations/0002_rls_policies.sql`
 3. `supabase/migrations/0003_storage.sql`
-4. `supabase/seed.sql`
+4. `supabase/migrations/0004_harden_database_access.sql`
+5. `supabase/seed.sql`
 
 ## 4. Create staff accounts
 
@@ -78,15 +78,18 @@ Staff sign in with Supabase Auth. A matching row in `public.profiles` is created
 automatically by a database trigger (default role: `technician`).
 
 1. Supabase → **Authentication → Users → Add user** (email + password).
-   Optionally set user metadata `{"full_name": "Owner Name", "role": "owner"}`.
-2. Promote your first account to owner (if you didn't set metadata):
+   Set user metadata `{"full_name": "Owner Name"}` if desired. New profiles always
+   start as technicians; client-controlled metadata is never trusted for roles.
+2. Promote your first account to owner from trusted setup SQL:
 
    ```sql
    update public.profiles set role = 'owner' where email = 'you@studio.com';
-   -- or: select public.promote_to_owner('you@studio.com');
+   -- or, while using the trusted service role:
+   select public.promote_to_owner('you@studio.com');
    ```
 
-3. Add technicians the same way (leave role as `technician`).
+3. Sign in as the owner and create further technician accounts from
+   `/dashboard/team`. The service-role key stays server-side.
 
 ## 5. Run the app
 
@@ -97,6 +100,11 @@ npm run dev
 - Marketing site: <http://localhost:3000>
 - Staff sign in: <http://localhost:3000/login>
 - Dashboard (after sign in): <http://localhost:3000/dashboard>
+- Services: <http://localhost:3000/dashboard/services>
+- Team: <http://localhost:3000/dashboard/team>
+- Availability: <http://localhost:3000/dashboard/availability>
+- Blocked dates: <http://localhost:3000/dashboard/blocked-dates>
+- Business settings / QR: <http://localhost:3000/dashboard/settings>
 
 ## Available scripts
 
@@ -121,10 +129,29 @@ npx supabase gen types typescript --linked > src/types/database.ts
 
 Keep this file in sync whenever you add a migration.
 
+For the local stack:
+
+```bash
+npx supabase gen types typescript --local > src/types/database.ts
+```
+
+## Database authorization tests
+
+With the local stack running:
+
+```bash
+npx supabase test db
+```
+
+The pgTAP suite verifies owner-wide visibility, technician isolation, protected
+calendar tokens, profile-role hardening, and schedule-integrity constraints.
+
 ## Security notes
 
 - `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS and must never reach the browser. It is
   only used by `src/lib/supabase/admin.ts` in trusted server code.
 - Google Calendar OAuth tokens live in `calendar_connections`, which has RLS
   enabled and **no policies** — only the service role can read them.
+- `promote_to_owner` is executable only by the service role. New Auth users cannot
+  promote themselves through signup metadata.
 - Never commit `.env.local`. Only `.env.example` is tracked.

@@ -2,114 +2,94 @@
 
 ## Completed
 
-**Phase 1 — Foundation** is complete and verified.
+**Phase 2 — Admin Setup** is complete on `feat/phase-2-admin`.
 
-- Next.js 16 (App Router, Turbopack) + TypeScript (strict) + Tailwind CSS v4 project,
-  scaffolded into the existing repo without disturbing the brief/brand assets.
-- Brand design system from `P&P Brand Guidelines`: palette (Deep Burgundy, Wine Red,
-  Ivory, Dusty Blush, Soft Taupe) and fonts (Cormorant Garamond display + Montserrat
-  body) wired as Tailwind theme tokens in `src/app/globals.css`. Signature "diamond
-  fleuron" divider component.
-- shadcn/ui-compatible primitives (`button`, `input`, `label`, `card`) + `cn` util +
-  `components.json`.
-- Supabase wiring: browser, server (SSR cookies), and service-role clients; session
-  refresh + protected-route guard via Next 16 **Proxy** (`src/proxy.ts`).
-- Full database schema, RLS, and storage as SQL migrations + seed (see below).
-- Supabase Auth: staff login (server action + validated form), sign-out, role-aware
-  session helpers (`requireProfile` / `requireRole`).
-- Responsive public site: landing (hero, how-it-works, services from DB with demo
-  fallback, policy strip), booking-policy, privacy, and a `/book` placeholder (full
-  flow is Phase 3). Sticky header + footer.
-- Responsive dashboard shell with role-based navigation (owner vs technician),
-  mobile drawer, and an overview page showing build progress.
-- Timezone foundation for the availability engine (Luxon, `Asia/Manila`) with tests.
-- `.env.example`, `docs/SETUP.md`, this handoff, and README.
+- Repaired the Windows/Docker prerequisite, started the local Supabase stack, and applied
+  migrations plus seed data with repeatable `supabase db reset` runs.
+- Created one local owner and two local technician Auth users and confirmed the profile
+  trigger, trusted owner promotion, and active roles.
+- Added owner-only Services management: create, edit, activate/deactivate, reorder, and
+  immediate public-site revalidation.
+- Added owner-only Team management: create confirmed technician Auth users through the
+  server-only service role, edit names/status, and assign services.
+- Added owner/technician Availability management: multiple recurring weekly periods and
+  date-specific available/unavailable overrides, all scoped in both app code and RLS.
+- Added owner/technician Blocked Dates management for full-day and partial-day periods,
+  stored as UTC instants converted from `Asia/Manila`.
+- Added owner-only Business Settings for studio, booking, payment, policy, Facebook, and
+  notification fields.
+- Added MariBank QR upload to the public `business-assets` bucket with file validation and
+  an undistorted, padded `next/image` preview. No fake QR was uploaded.
+- Enabled the Phase 2 owner and technician navigation entries and added shared loading,
+  empty, success, error, confirmation, and responsive states.
+- Browser-verified public, owner, technician, route-guard, server-action, public
+  revalidation, and 390px mobile flows with no Next.js error overlay or horizontal overflow.
 
 ## Files changed
 
-- Config: `package.json`, `next.config.ts`, `tsconfig.json` (scaffold), `components.json`,
-  `.prettierrc.json`, `.prettierignore`, `vitest.config.mts`, `.gitignore`, `.env.example`,
-  `.claude/launch.json`.
-- App: `src/app/layout.tsx`, `globals.css`, `not-found.tsx`,
-  `(public)/{layout,page}.tsx`, `(public)/book/page.tsx`,
-  `(public)/booking-policy/page.tsx`, `(public)/privacy/page.tsx`,
-  `(auth)/{layout}.tsx`, `(auth)/login/{page,login-form,actions}.tsx`,
-  `(dashboard)/dashboard/{layout,page}.tsx`.
-- Components: `ui/{button,input,label,card}.tsx`,
-  `shared/{wordmark,fleuron,site-header,site-footer,legal-page}.tsx`,
-  `dashboard/{dashboard-shell,nav-items}.ts(x)`.
-- Lib: `utils.ts`, `constants.ts`, `env.ts`, `demo.ts`,
-  `supabase/{client,server,admin,middleware}.ts`, `auth/{session,actions}.ts`,
-  `availability/time.ts` (+ test), `validation/auth.ts` (+ test), `data/services.ts`.
-- Types: `src/types/database.ts` (hand-authored, mirrors migrations).
-- Assets: brand logo + guidelines copied to `public/brand/`.
-- `src/proxy.ts`.
+- Database: `supabase/migrations/0004_harden_database_access.sql`,
+  `supabase/tests/0001_phase2_rls.sql`, regenerated `src/types/database.ts`.
+- Services: `src/app/(dashboard)/dashboard/services/*`.
+- Team: `src/app/(dashboard)/dashboard/team/*`.
+- Availability: `src/app/(dashboard)/dashboard/availability/*`.
+- Blocked periods: `src/app/(dashboard)/dashboard/blocked-dates/*`.
+- Business settings / QR: `src/app/(dashboard)/dashboard/settings/*`, `next.config.ts`.
+- Shared UI: dashboard page header, action notice, submit/confirm controls, select,
+  textarea, loading and error boundaries.
+- Validation/tests: Phase 2 Zod modules and `src/lib/validation/phase2.test.ts`.
+- Navigation/config/docs: `nav-items.ts`, `eslint.config.mjs`, `docs/SETUP.md`, this file.
 
 ## Database changes
 
-New migrations under `supabase/migrations/`:
+`0004_harden_database_access.sql`:
 
-- `0001_initial_schema.sql` — extensions (`pgcrypto`, `btree_gist`); enums
-  (`user_role`, `booking_status`, `payment_status`, `calendar_sync_status`,
-  `notification_type`); tables `profiles`, `business_settings`, `services`,
-  `technician_services`, `availability_rules`, `availability_overrides`,
-  `blocked_periods`, `bookings`, `calendar_connections`, `notification_log`;
-  indexes; `updated_at` triggers; `handle_new_user` trigger (auto-profile);
-  helpers `current_user_role()`, `is_owner()`, `gen_booking_code()`.
-  **Double-booking is enforced at the DB level** via a `btree_gist` exclusion
-  constraint on `(technician_id, tstzrange(starts_at, ends_at))` for all
-  non-cancelled bookings.
-- `0002_rls_policies.sql` — RLS enabled on every table. Owner has full access;
-  technicians can read/write only their own availability/blocks and read only their
-  assigned bookings. `services`/`business_settings`/`technician_services` are
-  publicly readable for the booking site. `calendar_connections` has RLS enabled and
-  **no policies** (service-role only) so OAuth tokens never reach a client.
-- `0003_storage.sql` — `reference-photos` (private, staff-only) and `business-assets`
-  (public read, owner write) buckets + object policies.
+- Grants normal PostgREST DML privileges so authenticated requests reach RLS policies.
+- Limits anonymous table reads to the public catalog/settings tables.
+- Forces every trigger-created profile to start as `technician`; signup metadata cannot
+  create an owner.
+- Restricts `promote_to_owner(text)` execution to `service_role`.
+- Prevents technicians from changing their own email, role, or active status.
+- Adds a GiST exclusion constraint preventing overlapping active recurring periods for the
+  same technician and weekday.
+- Adds one date override per technician/date.
+- Adds safe default table privileges for future authenticated/service-role tables; future
+  migrations must still enable and define RLS.
 
-Seed: `supabase/seed.sql` — one `business_settings` row + 4 demo services (all
-120 min), idempotent; plus `promote_to_owner(email)` helper.
+Local database state: seed settings + four demo services, one active owner, two active
+technicians. `.env.local` contains ignored local-only Supabase values.
 
 ## Commands run
 
-- `npm run format` / `format:check` → all files match Prettier style
-- `npm run lint` → 0 problems
-- `npm run typecheck` → passes (`next typegen` + `tsc --noEmit`)
-- `npm run test` → 16 passed (2 files)
-- `npm run build` → succeeds; routes `/`, `/book`, `/booking-policy`, `/privacy`
-  static, `/login` dynamic, `/dashboard` guarded, Proxy registered
-- Manual: dev server smoke-tested — landing, `/login`, and `/dashboard`→`/login`
-  redirect all render with no console or server errors
+- `npx supabase start`
+- `npx supabase db reset` (clean migration/seed verification)
+- `npx supabase gen types typescript --local`
+- `npx supabase test db`
+- `npm run format`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test`
+- `npm run build`
+- `npm run dev` + `agent-browser` owner/technician/mobile verification
 
 ## Tests
 
-`src/lib/availability/time.test.ts` — Asia/Manila parsing, date-key boundaries,
-120-minute end calc, weekday conversion, interval overlap/containment (2h slot
-boundaries). `src/lib/validation/auth.test.ts` — login schema.
+- Vitest: 26 tests across Auth, Manila time helpers, and Phase 2 validation.
+- pgTAP: 19 assertions covering trigger hardening, owner visibility, technician isolation,
+  cross-technician write denial, calendar-token denial, owner-promotion ACLs, protected
+  profile fields, recurring overlap rejection, and duplicate override rejection.
+- Browser: live service creation/public visibility, technician self-service schedule write,
+  owner-route rejection for technicians, all Phase 2 route render checks, and mobile overflow.
 
-## Known issues / notes
+## Known issues
 
-- **No live Supabase project was provisioned** (requires interactive auth). Migrations
-  and seed are written and ready to apply per `docs/SETUP.md`; they have not been run
-  against a live database yet. Verify RLS with owner + technician sessions after applying.
-- `src/types/database.ts` is hand-authored to match the migrations. Regenerate with
-  `supabase gen types` once linked.
-- Technician write access to `bookings` (completed/no-show) is intentionally **not**
-  granted via RLS; it will go through a validated server RPC in Phase 4 so technicians
-  cannot cancel/reschedule/verify-payment.
-- Client reference-photo upload will use server-issued signed URLs in Phase 3 (no anon
-  storage policy exists yet, by design).
-- `business_settings.notification_email` is currently publicly readable along with the
-  rest of that row; move it to an owner-only surface if it should stay private.
+- A real MariBank QR was not supplied, so upload/preview is implemented but the local
+  setting remains empty.
+- Local staff credentials are disposable development data and are intentionally not
+  documented or committed.
+- Client booking, operations, Google Calendar, email, and deployment remain later phases.
 
 ## Recommended next task
 
-**Phase 2 — Admin setup.** Build owner-only management for services, team members,
-availability rules/overrides, blocked periods, business settings, and MariBank QR
-upload (Supabase Storage `business-assets`). This unblocks real availability data for
-the Phase 3 booking flow. Start with Services + Team (they seed the technician list
-the booking flow needs), then Availability, then Settings/QR.
-
-See **[docs/PHASE2.md](PHASE2.md)** for the full kickoff spec: prerequisite DB
-standup + RLS verification, ordered build list, conventions, tests, and the Phase 2
-definition of done.
+**Phase 3 — Client Booking.** Build service and technician selection, the tested
+`Asia/Manila` availability engine, client details/policy acceptance, private reference-photo
+upload, atomic booking creation with final slot recheck, and confirmation/payment instructions.
