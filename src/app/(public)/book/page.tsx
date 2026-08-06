@@ -1,33 +1,58 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BookingFlow } from "@/components/booking/booking-flow";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Fleuron } from "@/components/shared/fleuron";
+import { getBookingCatalog } from "@/lib/data/booking";
 
 export const metadata: Metadata = {
   title: "Book an appointment",
+  description: "Choose your service, nail technician, and available appointment.",
 };
 
-/**
- * Phase 1 placeholder. The full booking flow (service → technician → slot →
- * details → policy → payment) is built in Phase 3.
- */
-export default function BookPage() {
+export const dynamic = "force-dynamic";
+
+export default async function BookPage() {
+  const catalog = await getBookingCatalog();
+
   return (
-    <section className="mx-auto flex w-full max-w-2xl flex-col items-center px-5 py-24 text-center sm:px-8">
-      <Fleuron variant="mark" />
-      <h1 className="mt-5 font-serif text-4xl text-primary">Online booking is being set up</h1>
-      <p className="mt-4 max-w-md text-muted-foreground">
-        The full booking experience — choosing your service, technician, and a two-hour slot —
-        arrives in the next phase. Thank you for your patience.
-      </p>
-      <div className="mt-8 flex flex-wrap justify-center gap-3">
-        <Button asChild variant="outline">
-          <Link href="/#services">View services</Link>
-        </Button>
-        <Button asChild>
-          <Link href="/">Back to home</Link>
-        </Button>
+    <section className="mx-auto w-full max-w-4xl px-5 py-10 sm:px-8 sm:py-16">
+      <div className="text-center">
+        <Fleuron variant="mark" className="mx-auto" />
+        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-taupe">
+          Online booking · Asia/Manila
+        </p>
+        <h1 className="mt-3 font-serif text-4xl text-primary sm:text-5xl">
+          Reserve your appointment
+        </h1>
+        <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+          Choose your service, your nail technician, and a time that works. Your appointment is
+          reserved instantly when you confirm.
+        </p>
       </div>
+
+      {!catalog.configured || catalog.services.length === 0 ? (
+        <Card className="mx-auto mt-10 max-w-xl">
+          <CardContent className="p-7 text-center">
+            <h2 className="font-serif text-2xl text-primary">Booking is not available yet</h2>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+              The studio is finishing its service and technician schedule. Please check again soon
+              or contact Poin&rsquo;t &amp; Polish through Facebook.
+            </p>
+            <Button asChild variant="outline" className="mt-6">
+              <Link href="/">Back to home</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <BookingFlow
+          services={catalog.services}
+          cancellationPolicy={catalog.cancellationPolicy}
+          minimumDate={catalog.minimumDate}
+          maximumDate={catalog.maximumDate}
+        />
+      )}
     </section>
   );
 }

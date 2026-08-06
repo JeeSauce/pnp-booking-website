@@ -19,9 +19,7 @@ export const clientDetailsSchema = z.object({
     .trim()
     .min(7, "Enter a valid mobile number.")
     .max(30, "Mobile number is too long."),
-  client_email: z
-    .email("Enter a valid email address.")
-    .transform((value) => value.toLowerCase()),
+  client_email: z.email("Enter a valid email address.").transform((value) => value.toLowerCase()),
   client_notes: optionalText(1000),
 });
 
@@ -35,10 +33,7 @@ export const referencePhotoSchema = z
     "Choose a valid reference photo.",
   )
   .refine((file) => file.size > 0, "Choose a valid reference photo.")
-  .refine(
-    (file) => file.size <= 5 * 1024 * 1024,
-    "Reference photo must be 5 MB or smaller.",
-  )
+  .refine((file) => file.size <= 5 * 1024 * 1024, "Reference photo must be 5 MB or smaller.")
   .refine(
     (file) => ["image/png", "image/jpeg", "image/webp"].includes(file.type),
     "Upload a PNG, JPEG, or WebP image.",
@@ -60,6 +55,18 @@ export const bookingCodeSchema = z
   .trim()
   .toUpperCase()
   .regex(/^PNP-[A-F0-9]{6}$/, "Invalid booking code.");
+
+export const availableSlotSchema = z.object({
+  start: z.iso.datetime({ offset: true }),
+  end: z.iso.datetime({ offset: true }),
+  label: z.string(),
+});
+
+export const availabilityResponseSchema = z.object({
+  slots: z.array(availableSlotSchema),
+  durationMinutes: z.number().int().positive(),
+  timezone: z.literal("Asia/Manila"),
+});
 
 export type BookingSubmission = z.infer<typeof bookingSubmissionSchema>;
 export type AvailabilityRequest = z.infer<typeof availabilityRequestSchema>;

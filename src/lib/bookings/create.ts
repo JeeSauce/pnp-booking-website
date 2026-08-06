@@ -8,8 +8,7 @@ import type { BookingSubmission } from "@/lib/validation/booking";
 type AdminClient = ReturnType<typeof createAdminClient>;
 
 export type CreateBookingResult =
-  | { ok: true; bookingCode: string }
-  | { ok: false; kind: "conflict" | "error"; message: string };
+  { ok: true; bookingCode: string } | { ok: false; kind: "conflict" | "error"; message: string };
 
 type CreateBookingDependencies = {
   admin?: AdminClient;

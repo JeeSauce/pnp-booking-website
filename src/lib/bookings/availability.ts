@@ -6,12 +6,7 @@ import {
   type AvailableSlot,
   type BusyInterval,
 } from "@/lib/availability/engine";
-import {
-  isoToStoredWeekday,
-  manilaWeekday,
-  nowInManila,
-  toUtcIso,
-} from "@/lib/availability/time";
+import { isoToStoredWeekday, manilaWeekday, nowInManila, toUtcIso } from "@/lib/availability/time";
 import { ACTIVE_BOOKING_STATUSES, BOOKING_DEFAULTS, TIMEZONE } from "@/lib/constants";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { AvailabilityRequest } from "@/lib/validation/booking";
@@ -33,8 +28,7 @@ export type BookingAvailability = {
 };
 
 export type BookingAvailabilityResult =
-  | { ok: true; value: BookingAvailability }
-  | { ok: false; reason: "not_found" | "load_failed" };
+  { ok: true; value: BookingAvailability } | { ok: false; reason: "not_found" | "load_failed" };
 
 type AvailabilityDependencies = {
   admin?: AdminClient;
@@ -166,11 +160,9 @@ export async function loadBookingAvailability(
     busyIntervals: dependencies.busyIntervals ?? [],
     durationMinutes: serviceResult.data.duration_minutes,
     bufferMinutes: settings?.default_buffer_minutes ?? BOOKING_DEFAULTS.bufferMinutes,
-    minimumNoticeMinutes:
-      settings?.minimum_notice_minutes ?? BOOKING_DEFAULTS.minimumNoticeMinutes,
+    minimumNoticeMinutes: settings?.minimum_notice_minutes ?? BOOKING_DEFAULTS.minimumNoticeMinutes,
     bookingWindowWeeks: settings?.booking_window_weeks ?? BOOKING_DEFAULTS.bookingWindowWeeks,
-    slotIntervalMinutes:
-      settings?.slot_interval_minutes ?? BOOKING_DEFAULTS.slotIntervalMinutes,
+    slotIntervalMinutes: settings?.slot_interval_minutes ?? BOOKING_DEFAULTS.slotIntervalMinutes,
   });
 
   return {

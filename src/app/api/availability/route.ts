@@ -10,7 +10,10 @@ export async function GET(request: Request) {
   });
 
   if (!parsed.success) {
-    return Response.json({ error: "Choose a valid service, technician, and date." }, { status: 400 });
+    return Response.json(
+      { error: "Choose a valid service, technician, and date." },
+      { status: 400 },
+    );
   }
 
   const result = await loadBookingAvailability(parsed.data);
