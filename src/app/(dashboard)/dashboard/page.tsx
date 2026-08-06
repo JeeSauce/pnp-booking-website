@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { CheckCircle2, Circle, Clock } from "lucide-react";
+import { DateTime } from "luxon";
 import { requireProfile, isOwner } from "@/lib/auth/session";
+import { nowInManila } from "@/lib/availability/time";
+import { TIMEZONE } from "@/lib/constants";
+import { getStaffBookings } from "@/lib/data/operations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Fleuron } from "@/components/shared/fleuron";
 
@@ -12,6 +16,22 @@ export default async function DashboardOverviewPage() {
   const profile = await requireProfile();
   const owner = isOwner(profile);
   const firstName = profile.full_name.split(" ")[0] ?? profile.full_name;
+  const today = nowInManila().startOf("day");
+  const bookings = await getStaffBookings(profile, {
+    dateFrom: today.toFormat("yyyy-MM-dd"),
+    dateTo: today.endOf("week").toFormat("yyyy-MM-dd"),
+  });
+  const active = bookings.filter((booking) => booking.status !== "cancelled_by_admin");
+  const todayKey = today.toFormat("yyyy-MM-dd");
+  const todayCount = active.filter(
+    (booking) =>
+      DateTime.fromISO(booking.startsAt, { setZone: true })
+        .setZone(TIMEZONE)
+        .toFormat("yyyy-MM-dd") === todayKey,
+  ).length;
+  const secondaryCount = owner
+    ? active.filter((booking) => booking.paymentStatus === "unverified").length
+    : active.filter((booking) => booking.status === "confirmed").length;
 
   return (
     <div className="flex flex-col gap-8">
@@ -22,15 +42,19 @@ export default async function DashboardOverviewPage() {
         <h1 className="mt-2 font-serif text-3xl text-primary">Welcome back, {firstName}</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
           {owner
-            ? "This is your studio's control center. Booking operations arrive as later phases are completed."
-            : "Here you'll manage your schedule and see the appointments assigned to you."}
+            ? "Your studio's live booking overview, with payment and appointment operations close at hand."
+            : "Review your assigned appointments and record each completed service or no-show."}
         </p>
       </header>
 
       <section aria-label="Summary" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Today's appointments" value="—" hint="Available in Phase 4" />
-        <StatCard label="Awaiting payment" value="—" hint="Available in Phase 4" />
-        <StatCard label="This week" value="—" hint="Available in Phase 4" />
+        <StatCard label="Today's appointments" value={String(todayCount)} hint="Asia/Manila" />
+        <StatCard
+          label={owner ? "Awaiting payment" : "Confirmed this week"}
+          value={String(secondaryCount)}
+          hint={owner ? "Manual verification" : "Assigned to you"}
+        />
+        <StatCard label="This week" value={String(active.length)} hint="Active appointments" />
         <StatCard label="Sync warnings" value="—" hint="Available in Phase 5" />
       </section>
 
@@ -42,10 +66,10 @@ export default async function DashboardOverviewPage() {
           <CardContent>
             <ol className="flex flex-col gap-3 text-sm">
               <PhaseRow state="done" label="Phase 1 — Foundation, auth, schema & RLS" />
-              <PhaseRow state="next" label="Phase 2 — Services, team, availability & settings" />
-              <PhaseRow state="todo" label="Phase 3 — Client booking flow" />
-              <PhaseRow state="todo" label="Phase 4 — Operations & payment verification" />
-              <PhaseRow state="todo" label="Phase 5 — Google Calendar, email & reminders" />
+              <PhaseRow state="done" label="Phase 2 — Services, team, availability & settings" />
+              <PhaseRow state="done" label="Phase 3 — Client booking flow" />
+              <PhaseRow state="done" label="Phase 4 — Operations & payment verification" />
+              <PhaseRow state="next" label="Phase 5 — Google Calendar, email & reminders" />
               <PhaseRow state="todo" label="Phase 6 — Quality & deployment" />
             </ol>
           </CardContent>

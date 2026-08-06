@@ -26,13 +26,13 @@ export type NavItem = {
 /** Owner/Admin navigation (PROJECT_BRIEF.md → Dashboard Pages). */
 const OWNER_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, available: true },
-  { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays, available: false },
-  { href: "/dashboard/bookings", label: "Bookings", icon: ClipboardList, available: false },
+  { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays, available: true },
+  { href: "/dashboard/bookings", label: "Bookings", icon: ClipboardList, available: true },
   { href: "/dashboard/services", label: "Services", icon: Scissors, available: true },
   { href: "/dashboard/team", label: "Team", icon: Users, available: true },
   { href: "/dashboard/availability", label: "Availability", icon: CalendarClock, available: true },
   { href: "/dashboard/blocked-dates", label: "Blocked dates", icon: CalendarOff, available: true },
-  { href: "/dashboard/payments", label: "Payments", icon: BadgeCheck, available: false },
+  { href: "/dashboard/payments", label: "Payments", icon: BadgeCheck, available: true },
   {
     href: "/dashboard/calendar-connections",
     label: "Google Calendar",
@@ -46,8 +46,8 @@ const OWNER_NAV: NavItem[] = [
 /** Team Member / Nail Technician navigation. */
 const TECH_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, available: true },
-  { href: "/dashboard/calendar", label: "My calendar", icon: CalendarDays, available: false },
-  { href: "/dashboard/bookings", label: "My bookings", icon: ClipboardList, available: false },
+  { href: "/dashboard/calendar", label: "My calendar", icon: CalendarDays, available: true },
+  { href: "/dashboard/bookings", label: "My bookings", icon: ClipboardList, available: true },
   {
     href: "/dashboard/availability",
     label: "My availability",
