@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Poin't & Polish design tokens
+   Palette and type are taken directly from the brand guidelines:
+   Deep Burgundy #530C14 · Wine Red #7B1E29 · Ivory #EBE4D2 ·
+   Dusty Blush #D7C6BA · Soft Taupe #8C7470.
+   Display face: Cormorant Garamond · Body/UI face: Montserrat.
+--------------------------------------------------------------------------- */
+
+:root {
+  --radius: 0.75rem;
+
+  /* Raw brand palette */
+  --brand-burgundy: #530c14;
+  --brand-wine: #7b1e29;
+  --brand-ivory: #ebe4d2;
+  --brand-blush: #d7c6ba;
+  --brand-taupe: #8c7470;
+
+  /* Semantic surface tokens */
+  --background: #fbf8f3; /* lifted ivory — airy and premium */
+  --foreground: #2a1518; /* deep wine-brown for high contrast text */
+
+  --card: #ffffff;
+  --card-foreground: #2a1518;
+
+  --popover: #ffffff;
+  --popover-foreground: #2a1518;
+
+  --primary: #530c14; /* Deep Burgundy */
+  --primary-foreground: #f7efe2; /* ivory tint for text on burgundy */
+
+  --secondary: #ebe4d2; /* Ivory */
+  --secondary-foreground: #530c14;
+
+  --muted: #f2ece0;
+  --muted-foreground: #8c7470; /* Soft Taupe */
+
+  --accent: #7b1e29; /* Wine Red */
+  --accent-foreground: #f7efe2;
+
+  --destructive: #b3261e;
+  --destructive-foreground: #f7efe2;
+
+  --border: #e0d5c6; /* dusty blush / ivory border */
+  --input: #ddd0c0;
+  --ring: #7b1e29; /* wine focus ring */
+
+  --success: #4b6b52;
+  --warning: #a8712a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+
+  /* Named brand colors for direct use */
+  --color-burgundy: var(--brand-burgundy);
+  --color-wine: var(--brand-wine);
+  --color-ivory: var(--brand-ivory);
+  --color-blush: var(--brand-blush);
+  --color-taupe: var(--brand-taupe);
+
+  --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-cormorant), ui-serif, Georgia, "Times New Roman", serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  /* Visible focus for keyboard users across the app */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

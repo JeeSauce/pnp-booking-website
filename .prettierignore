@@ -1,0 +1,8 @@
+.next
+node_modules
+package-lock.json
+public
+assets
+reference
+*.md
+supabase/migrations
