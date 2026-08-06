@@ -109,3 +109,7 @@ availability rules/overrides, blocked periods, business settings, and MariBank Q
 upload (Supabase Storage `business-assets`). This unblocks real availability data for
 the Phase 3 booking flow. Start with Services + Team (they seed the technician list
 the booking flow needs), then Availability, then Settings/QR.
+
+See **[docs/PHASE2.md](PHASE2.md)** for the full kickoff spec: prerequisite DB
+standup + RLS verification, ordered build list, conventions, tests, and the Phase 2
+definition of done.
