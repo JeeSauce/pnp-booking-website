@@ -71,11 +71,19 @@ select lives_ok(
 );
 
 select is(
-  (select count(*) from public.bookings where status <> 'cancelled_by_admin'),
+  (
+    select count(*)
+    from public.bookings
+    where service_id = '40000000-0000-4000-8000-000000000001'
+      and status <> 'cancelled_by_admin'
+  ),
   1::bigint,
   'exactly one overlapping booking remains active'
 );
 
+update public.bookings
+set reference_photo_path = 'phase3/private-reference.jpg'
+where client_email = 'replacement@example.test';
 insert into storage.objects (bucket_id, name, owner_id, metadata)
 values (
   'reference-photos',

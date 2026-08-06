@@ -34,6 +34,10 @@ type AvailabilityDependencies = {
   admin?: AdminClient;
   now?: string;
   busyIntervals?: BusyInterval[];
+  /** Ignore the booking being moved while rechecking a reschedule. */
+  excludeBookingId?: string;
+  /** Preserve the original duration snapshot when moving an existing booking. */
+  durationMinutes?: number;
 };
 
 /** Loads private schedule inputs server-side and returns only computed slots. */
@@ -105,7 +109,7 @@ export async function loadBookingAvailability(
       .gt("ends_at", dayStart),
     admin
       .from("bookings")
-      .select("starts_at,ends_at,status")
+      .select("id,starts_at,ends_at,status")
       .eq("technician_id", input.technician_id)
       .in("status", ACTIVE_BOOKING_STATUSES)
       .lt("starts_at", dayEnd)
@@ -129,6 +133,7 @@ export async function loadBookingAvailability(
   }
 
   const settings = settingsResult.data;
+  const durationMinutes = dependencies.durationMinutes ?? serviceResult.data.duration_minutes;
   const slots = computeAvailableSlots({
     date: input.date,
     now: dependencies.now ?? toUtcIso(nowInManila()),
@@ -152,13 +157,15 @@ export async function loadBookingAvailability(
       start: period.starts_at,
       end: period.ends_at,
     })),
-    existingBookings: (bookingsResult.data ?? []).map((booking) => ({
-      start: booking.starts_at,
-      end: booking.ends_at,
-      status: booking.status,
-    })),
+    existingBookings: (bookingsResult.data ?? [])
+      .filter((booking) => booking.id !== dependencies.excludeBookingId)
+      .map((booking) => ({
+        start: booking.starts_at,
+        end: booking.ends_at,
+        status: booking.status,
+      })),
     busyIntervals: dependencies.busyIntervals ?? [],
-    durationMinutes: serviceResult.data.duration_minutes,
+    durationMinutes,
     bufferMinutes: settings?.default_buffer_minutes ?? BOOKING_DEFAULTS.bufferMinutes,
     minimumNoticeMinutes: settings?.minimum_notice_minutes ?? BOOKING_DEFAULTS.minimumNoticeMinutes,
     bookingWindowWeeks: settings?.booking_window_weeks ?? BOOKING_DEFAULTS.bookingWindowWeeks,
@@ -172,7 +179,7 @@ export async function loadBookingAvailability(
       service: {
         id: serviceResult.data.id,
         name: serviceResult.data.name,
-        durationMinutes: serviceResult.data.duration_minutes,
+        durationMinutes,
         price: Number(serviceResult.data.price),
       },
       technician: {
