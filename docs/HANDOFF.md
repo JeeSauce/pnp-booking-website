@@ -54,3 +54,8 @@
 ## Recommended next task
 
 **Phase 4 — Operations.** Build the owner/team booking calendar, booking list/details, manual payment verification, owner-only cancellation/rescheduling, and technician completion/no-show actions. Preserve the Phase 3 engine/recheck path for rescheduling and add overlap/permission tests for every booking mutation.
+
+See **[docs/PHASE4.md](PHASE4.md)** for the full kickoff spec: the calendar/list/details
+screens, the permission model (technicians can only complete/no-show their own bookings),
+payment verification, cancel/reschedule reusing the engine recheck, signed-URL reference
+photos, required tests, and the Phase 4 definition of done.
