@@ -56,18 +56,14 @@ describe("computeAvailableSlots", () => {
     expect(
       labels(
         baseInput({
-          dateOverrides: [
-            { date: DATE, isAvailable: true, startTime: "12:00", endTime: "16:00" },
-          ],
+          dateOverrides: [{ date: DATE, isAvailable: true, startTime: "12:00", endTime: "16:00" }],
           slotIntervalMinutes: 120,
         }),
       ),
     ).toEqual(["12:00 PM", "2:00 PM"]);
 
     expect(
-      computeAvailableSlots(
-        baseInput({ dateOverrides: [{ date: DATE, isAvailable: false }] }),
-      ),
+      computeAvailableSlots(baseInput({ dateOverrides: [{ date: DATE, isAvailable: false }] })),
     ).toEqual([]);
   });
 
@@ -115,9 +111,7 @@ describe("computeAvailableSlots", () => {
       labels(
         baseInput({
           weeklyRules: [{ weekday: MONDAY, startTime: "09:00", endTime: "14:00" }],
-          busyIntervals: [
-            { start: "2026-03-02T03:00:00.000Z", end: "2026-03-02T04:00:00.000Z" },
-          ],
+          busyIntervals: [{ start: "2026-03-02T03:00:00.000Z", end: "2026-03-02T04:00:00.000Z" }],
           slotIntervalMinutes: 60,
         }),
       ),
