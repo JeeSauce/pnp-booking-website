@@ -28,10 +28,10 @@ const OWNER_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, available: true },
   { href: "/dashboard/calendar", label: "Calendar", icon: CalendarDays, available: false },
   { href: "/dashboard/bookings", label: "Bookings", icon: ClipboardList, available: false },
-  { href: "/dashboard/services", label: "Services", icon: Scissors, available: false },
-  { href: "/dashboard/team", label: "Team", icon: Users, available: false },
-  { href: "/dashboard/availability", label: "Availability", icon: CalendarClock, available: false },
-  { href: "/dashboard/blocked-dates", label: "Blocked dates", icon: CalendarOff, available: false },
+  { href: "/dashboard/services", label: "Services", icon: Scissors, available: true },
+  { href: "/dashboard/team", label: "Team", icon: Users, available: true },
+  { href: "/dashboard/availability", label: "Availability", icon: CalendarClock, available: true },
+  { href: "/dashboard/blocked-dates", label: "Blocked dates", icon: CalendarOff, available: true },
   { href: "/dashboard/payments", label: "Payments", icon: BadgeCheck, available: false },
   {
     href: "/dashboard/calendar-connections",
@@ -39,7 +39,7 @@ const OWNER_NAV: NavItem[] = [
     icon: CalendarCheck,
     available: false,
   },
-  { href: "/dashboard/settings", label: "Business settings", icon: Settings, available: false },
+  { href: "/dashboard/settings", label: "Business settings", icon: Settings, available: true },
   { href: "/dashboard/notifications", label: "Notifications", icon: Bell, available: false },
 ];
 
@@ -52,13 +52,13 @@ const TECH_NAV: NavItem[] = [
     href: "/dashboard/availability",
     label: "My availability",
     icon: CalendarClock,
-    available: false,
+    available: true,
   },
   {
     href: "/dashboard/blocked-dates",
     label: "My blocked dates",
     icon: CalendarOff,
-    available: false,
+    available: true,
   },
   {
     href: "/dashboard/calendar-connections",
