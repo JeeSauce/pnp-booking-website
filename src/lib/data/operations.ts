@@ -5,7 +5,7 @@ import { nowInManila } from "@/lib/availability/time";
 import { BOOKING_DEFAULTS, TIMEZONE } from "@/lib/constants";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import type { BookingStatus, PaymentStatus, Profile } from "@/types/database";
+import type { BookingStatus, CalendarSyncStatus, PaymentStatus, Profile } from "@/types/database";
 
 export type StaffTechnicianOption = { id: string; name: string; active: boolean };
 
@@ -25,6 +25,7 @@ export type StaffBooking = {
   endsAt: string;
   status: BookingStatus;
   paymentStatus: PaymentStatus;
+  calendarSyncStatus: CalendarSyncStatus;
   price: number;
   durationMinutes: number;
   policyAcceptedAt: string | null;
@@ -49,7 +50,7 @@ export type StaffBookingDetail = StaffBooking & {
 };
 
 const BOOKING_COLUMNS =
-  "id,booking_code,service_id,technician_id,client_name,client_email,client_phone,client_notes,reference_photo_path,starts_at,ends_at,status,payment_status,price_snapshot,duration_snapshot,policy_accepted_at,created_at,updated_at" as const;
+  "id,booking_code,service_id,technician_id,client_name,client_email,client_phone,client_notes,reference_photo_path,starts_at,ends_at,status,payment_status,calendar_sync_status,price_snapshot,duration_snapshot,policy_accepted_at,created_at,updated_at" as const;
 
 function dayStart(date: string): string | null {
   return DateTime.fromISO(date, { zone: TIMEZONE }).startOf("day").toUTC().toISO();
@@ -133,6 +134,7 @@ export async function getStaffBookings(
     endsAt: booking.ends_at,
     status: booking.status,
     paymentStatus: booking.payment_status,
+    calendarSyncStatus: booking.calendar_sync_status,
     price: Number(booking.price_snapshot),
     durationMinutes: booking.duration_snapshot,
     policyAcceptedAt: booking.policy_accepted_at,
@@ -141,6 +143,19 @@ export async function getStaffBookings(
   }));
 }
 
+export async function getFailedCalendarSyncCount(
+  profile: Pick<Profile, "id" | "role">,
+): Promise<number> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("bookings")
+    .select("id", { count: "exact", head: true })
+    .eq("calendar_sync_status", "failed");
+  if (profile.role !== "owner") query = query.eq("technician_id", profile.id);
+  const { count, error } = await query;
+  if (error) throw new Error("Calendar sync warnings could not be loaded.");
+  return count ?? 0;
+}
 export async function getStaffBookingDetail(
   profile: Pick<Profile, "id" | "role">,
   bookingId: string,
@@ -210,6 +225,7 @@ export async function getStaffBookingDetail(
     endsAt: booking.ends_at,
     status: booking.status,
     paymentStatus: booking.payment_status,
+    calendarSyncStatus: booking.calendar_sync_status,
     price: Number(booking.price_snapshot),
     durationMinutes: booking.duration_snapshot,
     policyAcceptedAt: booking.policy_accepted_at,

@@ -6,6 +6,7 @@ import { redirectWithMessage } from "@/lib/actions/redirect";
 import {
   cancelBookingByAdmin,
   rescheduleBookingByAdmin,
+  retryCalendarSync,
   setBookingOutcome,
   updateBookingPayment,
   type BookingOperationResult,
@@ -105,4 +106,13 @@ export async function rescheduleBookingAction(formData: FormData): Promise<void>
   }
   const result = await rescheduleBookingByAdmin(parsed.data, profile);
   finish(parsed.data.booking_id, result, "Booking rescheduled.");
+}
+export async function retryCalendarSyncAction(formData: FormData): Promise<void> {
+  const profile = await requireRole("owner");
+  const parsed = bookingIdentitySchema.safeParse({ booking_id: formData.get("booking_id") });
+  if (!parsed.success) {
+    redirectWithMessage("/dashboard/bookings", "error", firstZodError(parsed.error));
+  }
+  const result = await retryCalendarSync(parsed.data.booking_id, profile);
+  finish(parsed.data.booking_id, result, "Google Calendar sync completed.");
 }

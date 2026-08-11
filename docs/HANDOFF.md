@@ -2,55 +2,57 @@
 
 ## Completed
 
-**Phase 4 — Operations** is complete on `feat/phase-4-operations`.
+**Phase 5 Slice 1 - Google Calendar** is complete on feat/phase-5-google-calendar.
 
-- Added role-scoped day/week dashboard calendars and filterable booking lists. Owners see all technicians; technicians see only their own RLS-authorized bookings.
-- Added booking details with client contact, notes, status/payment state, and private reference photos exposed only through two-minute signed URLs after booking authorization.
-- Added trusted, Zod-validated server actions for owner payment verification/waiver, cancellation, and rescheduling, plus owner/assigned-technician completion and no-show.
-- Rescheduling reuses `loadBookingAvailability`, excludes only the booking being moved, rechecks the selected slot server-side, and maps exclusion SQLSTATE `23P01` to a clean conflict.
-- Added an owner payment queue and live, role-scoped overview counts. Calendar, Bookings, and owner Payments navigation entries are now available.
-- No Google Calendar or email calls are made. Cancellation immediately releases the slot through the existing exclusion predicate.
+- Added a thin typed Google Calendar REST client and fake with OAuth exchange/refresh, free/busy, event create/update/delete, and best-effort revocation.
+- Added AES-256-GCM encryption for access and refresh tokens using CALENDAR_TOKEN_ENCRYPTION_KEY, plus signed, expiring OAuth state tied to the authenticated staff profile.
+- Added service-role-only connection storage, safe connection status, refresh-on-expiry persistence, authenticated connect/callback routes, and confirmed disconnect handling.
+- Added the responsive dashboard calendar-connection page and enabled it for owner and technician navigation.
+- Fed Google busy intervals into the existing availability engine for public and reschedule slot reads. Google read failures log a warning and fail open.
+- Synced booking create, reschedule, technician reassignment, and cancellation only after the database write succeeds. Failures remain visible in calendar_sync_status without rolling back bookings.
+- Added owner-only retry from booking details and a role-scoped Sync warnings count on the dashboard.
+- Kept Email/Resend and Cron reminder slices out of scope.
 
 ## Files changed
 
-- Operations routes/UI: `src/app/(dashboard)/dashboard/calendar`, `bookings`, `payments`, and the dashboard overview.
-- Trusted operations: `src/lib/bookings/operations.ts`, `availability.ts`, `src/lib/validation/operations.ts`, and the protected reschedule availability route.
-- Authorized reads/presentation: `src/lib/data/operations.ts`, booking formatting/status/list components, and the reschedule form.
-- Navigation: `src/components/dashboard/nav-items.ts`.
-- Tests: `src/lib/bookings/operations.integration.test.ts`, `supabase/tests/0002_phase3_booking.sql`, and `0003_phase4_operations.sql`.
+- Calendar integration: src/lib/calendar/crypto.ts, client.ts, oauth.ts, connections.ts, busy.ts, sync.ts.
+- OAuth and connection UI: src/app/api/google/connect, src/app/api/google/callback, and src/app/(dashboard)/dashboard/calendar-connections.
+- Booking integration: src/lib/bookings/availability.ts, create.ts, operations.ts, and booking/dashboard data/actions/pages.
+- Navigation and environment: src/components/dashboard/nav-items.ts, src/lib/env.ts, .env.example, and vitest.config.mts.
+- Tests: src/lib/calendar/crypto.test.ts, oauth.test.ts, connections.test.ts, and sync.test.ts.
+- Documentation: docs/SETUP.md and docs/HANDOFF.md.
 
 ## Database changes
 
-- Added `supabase/migrations/0005_booking_operation_guards.sql`.
-- A `BEFORE UPDATE` trigger enforces terminal booking/payment transitions, immutable booking snapshots, confirmed-only rescheduling, and duration-consistent end times for every write path.
-- Preserved owner-wide booking RLS and technician read-only booking RLS; no technician booking write policy was added.
-- Narrowed private reference-photo reads so owners may read all attached booking photos while technicians may read only photos attached to their own bookings.
-- No columns or generated client-visible schema types changed, so `src/types/database.ts` remains current.
+- No migration or generated type change.
+- Reused calendar_connections and bookings.google_event_id/calendar_sync_status from 0001_initial_schema.sql.
+- calendar_connections remains RLS-enabled with no client policies; only the service role can read or write encrypted tokens.
 
 ## Commands run
 
-- `npx supabase start`
-- `npx supabase db reset`
-- `npm run format`
-- `npm run lint`
-- `npm run typecheck`
-- `npm run test`
-- `npm run build`
-- `npx supabase test db`
-- Local owner/technician browser verification with desktop/mobile layouts and accessibility checks.
+- npx supabase start
+- npx supabase db reset
+- npm run format
+- npm run lint
+- npm run typecheck
+- npm run test
+- npm run build
+- npx supabase test db
+- npx vitest run src/lib/calendar
 
 ## Tests
 
-- Vitest: 43 passing tests, including payment verification, allowed/terminal outcome transitions, reschedule conflict, duration-snapshot preservation, and cancelled-slot reuse through the public creation path.
-- pgTAP: 40 passing assertions. Phase 4 proves technicians cannot cancel, reschedule, verify payment, or edit another technician's booking; owners can perform valid mutations; invalid reversals fail; overlaps remain rejected; and reference photos follow booking ownership.
-- Browser verification: owner calendar/list/details/payments render seeded bookings; reschedule returns computed slots; signed photo URLs contain a short-lived token; technician details expose only completion/no-show; owner-only payments redirect technicians; mobile list has no horizontal overflow; no runtime overlay or browser errors were detected.
+- Vitest: 53 passing tests total. The 10 calendar tests cover encryption round-trip/tamper rejection, OAuth state validity/tamper/expiry, safe connection status, refresh persistence, fail-open busy reads, and synced/failed/not-connected transitions with no live Google calls.
+- pgTAP: 40 passing assertions across the existing Phase 2-4 RLS, booking overlap, operation guard, and storage suites.
+- Production build: passed with the connect, callback, and calendar-connections routes included.
+- Live Google OAuth was not exercised because this environment has no real Google credentials or deployed callback URL; setup steps are documented for deployment verification.
 
 ## Known issues
 
-- Payment verification remains manual and receipt delivery stays in Facebook Messenger.
-- Google Calendar sync, Resend notifications, and reminder jobs remain intentionally unimplemented for Phase 5.
-- The dashboard still reports sync warnings as unavailable until Phase 5 provides calendar connection health.
+- Google Calendar live consent and event behavior still require verification after real credentials and the production redirect URI are configured.
+- Payment verification remains manual through Facebook Messenger.
+- Resend email and Vercel Cron reminders are intentionally not implemented in this slice.
 
 ## Recommended next task
 
-**Phase 5 — Integrations.** Add Google Calendar OAuth/busy reads and retryable post-booking sync, then Resend confirmation/admin/cancellation/reschedule emails and idempotent reminder jobs. Keep database bookings authoritative and feed Google busy intervals into the existing engine injection point.
+**Phase 5 Slice 2 - Email.** Add the seven Resend transactional messages with idempotent notification_log writes. Keep Cron reminders for Slice 3.

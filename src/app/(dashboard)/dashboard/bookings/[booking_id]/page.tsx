@@ -10,6 +10,7 @@ import {
   Clock3,
   Mail,
   Phone,
+  RefreshCw,
   UserRound,
   XCircle,
 } from "lucide-react";
@@ -25,7 +26,12 @@ import { ConfirmSubmitButton, SubmitButton } from "@/components/dashboard/form-c
 import { RescheduleForm } from "@/components/dashboard/reschedule-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cancelBookingAction, setOutcomeAction, updatePaymentAction } from "../actions";
+import {
+  cancelBookingAction,
+  retryCalendarSyncAction,
+  setOutcomeAction,
+  updatePaymentAction,
+} from "../actions";
 
 export const metadata: Metadata = { title: "Booking details" };
 
@@ -74,6 +80,28 @@ export default async function BookingDetailPage({ params, searchParams }: PagePr
       </div>
 
       <ActionNotice success={messages.success} error={messages.error} />
+
+      {owner && booking.calendarSyncStatus === "failed" ? (
+        <Card className="border-warning/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <RefreshCw className="h-4 w-4 text-warning" /> Google Calendar sync warning
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              The booking is safe in the database, but its calendar event needs another sync
+              attempt.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <form action={retryCalendarSyncAction}>
+              <input type="hidden" name="booking_id" value={booking.id} />
+              <SubmitButton pendingLabel="Retrying...">
+                <RefreshCw /> Retry calendar sync
+              </SubmitButton>
+            </form>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <section className="grid gap-6 lg:grid-cols-2">
         <Card>

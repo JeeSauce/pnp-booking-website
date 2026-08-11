@@ -2,6 +2,7 @@ import "server-only";
 
 import { DateTime } from "luxon";
 import { loadBookingAvailability } from "@/lib/bookings/availability";
+import { syncBookingCreated } from "@/lib/calendar/sync";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { BookingSubmission } from "@/lib/validation/booking";
 
@@ -102,7 +103,7 @@ export async function createBooking(
       calendar_sync_status: "not_connected",
       created_by: null,
     })
-    .select("booking_code")
+    .select("id,booking_code")
     .single();
 
   if (error || !data) {
@@ -117,5 +118,6 @@ export async function createBooking(
     return { ok: false, kind: "error", message: "Your booking could not be confirmed." };
   }
 
+  await syncBookingCreated(data.id, { admin });
   return { ok: true, bookingCode: data.booking_code };
 }

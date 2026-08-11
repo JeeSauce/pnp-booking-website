@@ -1,16 +1,14 @@
 # Setup — Poin't & Polish Booking Website
 
-This guide gets the app running locally and connects it to Supabase. It reflects
-**Phase 3**: foundation, auth, RLS, admin setup, the Manila-time availability
-engine, public client booking, private reference photos, atomic booking creation,
-and MariBank payment instructions.
+This guide gets the app running locally and connects it to Supabase and Google Calendar. It reflects **Phase 5 Slice 1**: foundation, auth, RLS, admin setup, Manila-time availability, public booking, operations, and encrypted per-technician Google Calendar sync.
 
 ## Prerequisites
 
 - **Node.js** 18.18+ (developed on Node 26)
 - **npm** 9+
 - A **Supabase** project (free tier is fine)
-- Optional for later phases: Google Cloud OAuth client, Resend account, Vercel
+- A Google Cloud project and OAuth web client for calendar connections
+- Optional for later slices: Resend account and Vercel
 
 ## 1. Install dependencies
 
@@ -26,7 +24,7 @@ Copy the example file and fill in real values:
 cp .env.example .env.local
 ```
 
-For Phases 1–3 you need the Supabase values below. The service-role key is
+The app needs the Supabase values below. The service-role key is
 required for public booking creation and private reference-photo uploads:
 
 | Variable                         | Where to find it                                  |
@@ -72,7 +70,8 @@ In the Supabase dashboard → **SQL Editor**, run these files in order:
 2. `supabase/migrations/0002_rls_policies.sql`
 3. `supabase/migrations/0003_storage.sql`
 4. `supabase/migrations/0004_harden_database_access.sql`
-5. `supabase/seed.sql`
+5. `supabase/migrations/0005_booking_operation_guards.sql`
+6. `supabase/seed.sql`
 
 ## 4. Create staff accounts
 
@@ -93,7 +92,32 @@ automatically by a database trigger (default role: `technician`).
 3. Sign in as the owner and create further technician accounts from
    `/dashboard/team`. The service-role key stays server-side.
 
-## 5. Run the app
+## 5. Configure Google Calendar
+
+1. In Google Cloud Console, select or create a project and enable the Google Calendar API.
+2. Configure the OAuth consent screen. Add the studio staff as test users while the app remains in testing mode.
+3. Under APIs & Services > Credentials, create an OAuth client ID with application type Web application.
+4. Add these authorized redirect URIs exactly:
+   - Local: http://localhost:3000/api/google/callback
+   - Production: https://YOUR_DOMAIN/api/google/callback
+5. Set the following values in .env.local locally and in the Vercel project environment for deployment:
+   - GOOGLE_OAUTH_CLIENT_ID
+   - GOOGLE_OAUTH_CLIENT_SECRET
+   - GOOGLE_OAUTH_REDIRECT_URL
+   - CALENDAR_TOKEN_ENCRYPTION_KEY
+6. Generate the encryption key once per environment and keep it stable:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+```
+
+CALENDAR_TOKEN_ENCRYPTION_KEY must decode to exactly 32 bytes. Changing it after staff connect invalidates the encrypted token data and requires every technician to reconnect.
+
+Start the app, sign in as each staff member, and open /dashboard/calendar-connections. The consent request uses offline access and only the calendar.events and calendar.readonly scopes. Tokens stay server-side, are encrypted with AES-256-GCM, and never appear in connection-status responses.
+
+Google free/busy reads fail open: if Google is unavailable, the app still computes slots from studio rules, blocks, and confirmed database bookings. Calendar event sync failures do not roll back bookings; owners see a Sync warnings count and can retry from booking details.
+
+## 6. Run the app
 
 ```bash
 npm run dev
@@ -115,6 +139,7 @@ Run `npx supabase start` before `npm run test` to exercise that integration test
 - Availability: <http://localhost:3000/dashboard/availability>
 - Blocked dates: <http://localhost:3000/dashboard/blocked-dates>
 - Business settings / QR: <http://localhost:3000/dashboard/settings>
+- Google Calendar: <http://localhost:3000/dashboard/calendar-connections>
 
 ## Available scripts
 
@@ -161,7 +186,7 @@ cancelled-slot release, and private reference-photo access.
 
 - `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS and must never reach the browser. It is
   only used by `src/lib/supabase/admin.ts` in trusted server code.
-- Google Calendar OAuth tokens live in `calendar_connections`, which has RLS
+- Google Calendar OAuth tokens are AES-256-GCM encrypted in `calendar_connections`, which has RLS
   enabled and **no policies** — only the service role can read them.
 - Public availability reads and booking creation run only in trusted server code.
   The slot API returns computed starts, never raw technician schedules.

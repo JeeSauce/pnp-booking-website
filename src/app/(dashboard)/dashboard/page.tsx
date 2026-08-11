@@ -4,7 +4,7 @@ import { DateTime } from "luxon";
 import { requireProfile, isOwner } from "@/lib/auth/session";
 import { nowInManila } from "@/lib/availability/time";
 import { TIMEZONE } from "@/lib/constants";
-import { getStaffBookings } from "@/lib/data/operations";
+import { getFailedCalendarSyncCount, getStaffBookings } from "@/lib/data/operations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Fleuron } from "@/components/shared/fleuron";
 
@@ -17,10 +17,13 @@ export default async function DashboardOverviewPage() {
   const owner = isOwner(profile);
   const firstName = profile.full_name.split(" ")[0] ?? profile.full_name;
   const today = nowInManila().startOf("day");
-  const bookings = await getStaffBookings(profile, {
-    dateFrom: today.toFormat("yyyy-MM-dd"),
-    dateTo: today.endOf("week").toFormat("yyyy-MM-dd"),
-  });
+  const [bookings, failedSyncCount] = await Promise.all([
+    getStaffBookings(profile, {
+      dateFrom: today.toFormat("yyyy-MM-dd"),
+      dateTo: today.endOf("week").toFormat("yyyy-MM-dd"),
+    }),
+    getFailedCalendarSyncCount(profile),
+  ]);
   const active = bookings.filter((booking) => booking.status !== "cancelled_by_admin");
   const todayKey = today.toFormat("yyyy-MM-dd");
   const todayCount = active.filter(
@@ -55,7 +58,7 @@ export default async function DashboardOverviewPage() {
           hint={owner ? "Manual verification" : "Assigned to you"}
         />
         <StatCard label="This week" value={String(active.length)} hint="Active appointments" />
-        <StatCard label="Sync warnings" value="—" hint="Available in Phase 5" />
+        <StatCard label="Sync warnings" value={String(failedSyncCount)} hint="Google Calendar" />
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">

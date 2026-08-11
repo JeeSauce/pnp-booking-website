@@ -8,6 +8,7 @@ import {
 } from "@/lib/availability/engine";
 import { isoToStoredWeekday, manilaWeekday, nowInManila, toUtcIso } from "@/lib/availability/time";
 import { ACTIVE_BOOKING_STATUSES, BOOKING_DEFAULTS, TIMEZONE } from "@/lib/constants";
+import { getBusyIntervals } from "@/lib/calendar/busy";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { AvailabilityRequest } from "@/lib/validation/booking";
 
@@ -53,6 +54,10 @@ export async function loadBookingAvailability(
   const dayStart = toUtcIso(requestedDay.startOf("day"));
   const dayEnd = toUtcIso(requestedDay.plus({ days: 1 }).startOf("day"));
 
+  const googleBusyPromise = dependencies.busyIntervals
+    ? Promise.resolve(dependencies.busyIntervals)
+    : getBusyIntervals(input.technician_id, { from: dayStart, to: dayEnd }, { admin });
+
   const [
     serviceResult,
     technicianResult,
@@ -62,6 +67,7 @@ export async function loadBookingAvailability(
     overrideResult,
     blocksResult,
     bookingsResult,
+    googleBusyIntervals,
   ] = await Promise.all([
     admin
       .from("services")
@@ -114,6 +120,7 @@ export async function loadBookingAvailability(
       .in("status", ACTIVE_BOOKING_STATUSES)
       .lt("starts_at", dayEnd)
       .gt("ends_at", dayStart),
+    googleBusyPromise,
   ]);
 
   const failed = [
@@ -164,7 +171,7 @@ export async function loadBookingAvailability(
         end: booking.ends_at,
         status: booking.status,
       })),
-    busyIntervals: dependencies.busyIntervals ?? [],
+    busyIntervals: googleBusyIntervals,
     durationMinutes,
     bufferMinutes: settings?.default_buffer_minutes ?? BOOKING_DEFAULTS.bufferMinutes,
     minimumNoticeMinutes: settings?.minimum_notice_minutes ?? BOOKING_DEFAULTS.minimumNoticeMinutes,

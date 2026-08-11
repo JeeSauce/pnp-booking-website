@@ -41,4 +41,7 @@ export const serverEnv = {
       redirectUrl: required("GOOGLE_OAUTH_REDIRECT_URL", process.env.GOOGLE_OAUTH_REDIRECT_URL),
     };
   },
+  get calendarTokenEncryptionKey() {
+    return required("CALENDAR_TOKEN_ENCRYPTION_KEY", process.env.CALENDAR_TOKEN_ENCRYPTION_KEY);
+  },
 };

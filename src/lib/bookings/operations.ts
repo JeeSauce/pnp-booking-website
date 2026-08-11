@@ -2,6 +2,11 @@ import "server-only";
 
 import { DateTime } from "luxon";
 import { loadBookingAvailability } from "@/lib/bookings/availability";
+import {
+  syncBookingCancelled,
+  syncBookingCreated,
+  syncBookingRescheduled,
+} from "@/lib/calendar/sync";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Profile } from "@/types/database";
 import type {
@@ -163,6 +168,7 @@ export async function cancelBookingByAdmin(
       message: "Booking status changed. Refresh and try again.",
     };
   }
+  await syncBookingCancelled(data.id, { admin });
   return { ok: true };
 }
 
@@ -176,7 +182,7 @@ export async function rescheduleBookingByAdmin(
   const admin = dependencies.admin ?? createAdminClient();
   const { data: booking, error: loadError } = await admin
     .from("bookings")
-    .select("id,service_id,status,duration_snapshot")
+    .select("id,service_id,technician_id,status,duration_snapshot,google_event_id")
     .eq("id", input.booking_id)
     .maybeSingle();
   if (loadError) return { ok: false, kind: "error", message: "Booking could not be rescheduled." };
@@ -224,8 +230,6 @@ export async function rescheduleBookingByAdmin(
       technician_id: input.technician_id,
       starts_at: selectedSlot.start,
       ends_at: selectedSlot.end,
-      calendar_sync_status: "not_connected",
-      google_event_id: null,
     })
     .eq("id", input.booking_id)
     .eq("status", "confirmed")
@@ -246,5 +250,51 @@ export async function rescheduleBookingByAdmin(
       message: "Booking status changed. Refresh and try again.",
     };
   }
+  await syncBookingRescheduled(data.id, {
+    admin,
+    previousTechnicianId: booking.technician_id,
+    previousGoogleEventId: booking.google_event_id,
+  });
   return { ok: true };
+}
+
+export async function retryCalendarSync(
+  bookingId: string,
+  actor: OperationActor,
+  dependencies: OperationDependencies = {},
+): Promise<BookingOperationResult> {
+  const denied = ownerOnly(actor);
+  if (denied) return denied;
+  const admin = dependencies.admin ?? createAdminClient();
+  const { data: booking, error } = await admin
+    .from("bookings")
+    .select("id,status,google_event_id,calendar_sync_status")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (error) return { ok: false, kind: "error", message: "Calendar sync could not be retried." };
+  if (!booking) return NOT_FOUND;
+  if (booking.calendar_sync_status !== "failed") {
+    return {
+      ok: false,
+      kind: "invalid_state",
+      message: "This booking does not have a failed calendar sync.",
+    };
+  }
+
+  const result =
+    booking.status === "cancelled_by_admin"
+      ? await syncBookingCancelled(booking.id, { admin })
+      : booking.google_event_id
+        ? await syncBookingRescheduled(booking.id, { admin })
+        : await syncBookingCreated(booking.id, { admin });
+
+  if (result.status === "synced") return { ok: true };
+  if (result.status === "not_connected") {
+    return {
+      ok: false,
+      kind: "invalid_state",
+      message: "The assigned technician must connect Google Calendar first.",
+    };
+  }
+  return { ok: false, kind: "error", message: "Google Calendar sync failed again." };
 }

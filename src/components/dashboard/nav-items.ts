@@ -37,7 +37,7 @@ const OWNER_NAV: NavItem[] = [
     href: "/dashboard/calendar-connections",
     label: "Google Calendar",
     icon: CalendarCheck,
-    available: false,
+    available: true,
   },
   { href: "/dashboard/settings", label: "Business settings", icon: Settings, available: true },
   { href: "/dashboard/notifications", label: "Notifications", icon: Bell, available: false },
@@ -64,7 +64,7 @@ const TECH_NAV: NavItem[] = [
     href: "/dashboard/calendar-connections",
     label: "Google Calendar",
     icon: CalendarCheck,
-    available: false,
+    available: true,
   },
   { href: "/dashboard/account", label: "Account", icon: UserCog, available: false },
 ];
