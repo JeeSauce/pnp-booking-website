@@ -193,3 +193,84 @@ Cron reminder scheduling (Slice 3). No new client-facing pages.
 - [ ] `format` · `lint` · `typecheck` · `test` · `build` and `supabase test db` pass;
       new Vitest coverage for idempotency, failure, and each template.
 - [ ] `.env.example`, `docs/SETUP.md`, `docs/HANDOFF.md` updated (Resend setup + `EMAIL_FROM`).
+
+---
+
+## Slice 3 — Cron reminders (Vercel Cron)
+
+Status: **not started** (Slices 1–2 complete + merged). Final Phase 5 slice. Sends the
+24-hour and 2-hour reminder emails on a schedule using the Slice 2 templates + Resend
+client, guarded against duplicates and safe to run repeatedly.
+
+### Decisions (defaults — following the established conventions)
+
+- **Scheduler:** Vercel Cron via `vercel.json` (`crons`), hitting a secured route
+  `GET /api/cron/reminders`. Two windows handled in one job run (24h + 2h) so there's a
+  single cron entry; the job itself figures out which reminders are due.
+- **Auth:** the route requires the `CRON_SECRET` (Vercel Cron sends
+  `Authorization: Bearer $CRON_SECRET`). Reject anything else with 401. `CRON_SECRET`
+  already exists in `env.ts` + `.env.example`.
+- **Due-window selection:** for each reminder type, select `confirmed` bookings whose
+  `starts_at` falls inside that type's window measured from "now" in Asia/Manila, that
+  are not cancelled, and that do not already have a **successful** reminder of that type.
+  Recommended windows: `reminder_24h` for bookings starting in ~23–25h; `reminder_2h`
+  for ~1.5–2.5h. A booking that never got a 24h reminder (e.g. booked <24h out) simply
+  isn't eligible for it — only the 2h reminder applies. Keep the query bounded and
+  indexed on `(status, starts_at)`.
+- **Idempotency + retry:** reuse `notification_log` `(booking_id, notification_type)`.
+  IMPORTANT (carry-over from Slice 2): Slice 2's `claim()` treats ANY existing row as a
+  duplicate, so a `failed` reminder would never retry. For reminders, allow a retry when
+  the only existing row for that `(booking, type)` is `failed` (or a stale `pending`) —
+  e.g. delete/reset that row inside the claim, or make the claim upsert-and-win only when
+  status is `failed`. A `sent` row must still block. Do this without enabling duplicate
+  `sent` emails, and keep Slice 2's event-triggered behavior unchanged (a shared helper
+  with an opt-in `allowRetry` flag is fine).
+- **Failure mode:** best-effort per booking — one booking's send failure is logged and
+  recorded `failed`, and must not abort the rest of the batch. The route returns a small
+  JSON summary (counts: considered / sent / skipped / failed).
+
+### Modules
+
+- `src/lib/reminders/due.ts` — pure-ish selection: given `now` + the booking rows, return
+  which `(bookingId, type)` reminders are due. Unit-testable with injected `now` and rows;
+  Asia/Manila window math via the existing Luxon helpers.
+- `src/lib/reminders/run.ts` — orchestration: load candidates (service role), compute due
+  reminders, send each via the Slice 2 sender (with retry-aware claim), collect a summary.
+  Never throws for a single failure.
+- `src/app/api/cron/reminders/route.ts` — `CRON_SECRET` auth, calls `run`, returns JSON.
+- `vercel.json` — a `crons` entry (e.g. every 15–30 min) pointing at the route. Document
+  the schedule.
+
+### Reuse / integration
+
+- Reminder templates already exist (`templates.ts`), so no new email content beyond
+  wiring. Extend `notify.ts` (or a thin wrapper) with the retry-aware claim rather than
+  duplicating send logic.
+
+### Testing (Vitest; no live network, injected `now` + fake email client)
+
+- Due-selection: a booking ~24h out yields `reminder_24h`; ~2h out yields `reminder_2h`;
+  outside windows yields nothing; cancelled excluded; a booking already `sent` for a type
+  is not re-selected.
+- Retry: a `failed` reminder row is retried and can become `sent`; a `sent` row is never
+  re-sent (no duplicates).
+- Batch: one booking's send failure does not stop the others; summary counts are correct.
+- Route auth: missing/wrong `CRON_SECRET` → 401; correct secret → runs.
+- Keep Vitest (67) and pgTAP (40) green; extend as needed.
+
+### Definition of done (Slice 3)
+
+- [ ] `GET /api/cron/reminders` is `CRON_SECRET`-guarded and returns a JSON summary.
+- [ ] 24h + 2h reminders send once per booking via the existing templates, in Asia/Manila.
+- [ ] Idempotent (no duplicate `sent`), but a `failed`/stale reminder can retry on a later
+      run; Slice 2's event-email behavior is unchanged.
+- [ ] Per-booking failures are isolated and recorded; the batch completes.
+- [ ] `vercel.json` cron entry added and documented.
+- [ ] `format` · `lint` · `typecheck` · `test` · `build` and `supabase test db` pass; new
+      Vitest coverage for due-selection, retry, batch isolation, and route auth.
+- [ ] `.env.example` (CRON_SECRET), `docs/SETUP.md` (cron setup), `docs/HANDOFF.md` updated.
+      Recommended next task = Phase 6 (Quality & deployment).
+
+### Out of scope
+
+Any non-reminder cron work, and Phase 6 deployment/hardening.
