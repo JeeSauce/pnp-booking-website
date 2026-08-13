@@ -2,31 +2,28 @@
 
 ## Completed
 
-**Phase 5 Slice 1 - Google Calendar** is complete on feat/phase-5-google-calendar.
+**Phase 5 Slice 2 - Email (Resend)** is complete on feat/phase-5-email.
 
-- Added a thin typed Google Calendar REST client and fake with OAuth exchange/refresh, free/busy, event create/update/delete, and best-effort revocation.
-- Added AES-256-GCM encryption for access and refresh tokens using CALENDAR_TOKEN_ENCRYPTION_KEY, plus signed, expiring OAuth state tied to the authenticated staff profile.
-- Added service-role-only connection storage, safe connection status, refresh-on-expiry persistence, authenticated connect/callback routes, and confirmed disconnect handling.
-- Added the responsive dashboard calendar-connection page and enabled it for owner and technician navigation.
-- Fed Google busy intervals into the existing availability engine for public and reschedule slot reads. Google read failures log a warning and fail open.
-- Synced booking create, reschedule, technician reassignment, and cancellation only after the database write succeeds. Failures remain visible in calendar_sync_status without rolling back bookings.
-- Added owner-only retry from booking details and a role-scoped Sync warnings count on the dashboard.
-- Kept Email/Resend and Cron reminder slices out of scope.
+- Added a typed EmailClient, thin Resend REST fetch implementation, test fake, and network-free development logger used when RESEND_API_KEY is unset.
+- Added seven branded, email-safe templates with inline CSS, web-safe fonts, escaped values, and Asia/Manila appointment formatting.
+- Added service-role booking/recipient loading plus insert-first notification_log idempotency. Successful sends record sent_at/provider_message_id and failures record failed.
+- Wired the five event-triggered messages after their committed database operations; failures never throw into or roll back the caller.
+- Built reminder_24h and reminder_2h templates only. No Cron route, scheduler, or client-facing page was added.
 
 ## Files changed
 
-- Calendar integration: src/lib/calendar/crypto.ts, client.ts, oauth.ts, connections.ts, busy.ts, sync.ts.
-- OAuth and connection UI: src/app/api/google/connect, src/app/api/google/callback, and src/app/(dashboard)/dashboard/calendar-connections.
-- Booking integration: src/lib/bookings/availability.ts, create.ts, operations.ts, and booking/dashboard data/actions/pages.
-- Navigation and environment: src/components/dashboard/nav-items.ts, src/lib/env.ts, .env.example, and vitest.config.mts.
-- Tests: src/lib/calendar/crypto.test.ts, oauth.test.ts, connections.test.ts, and sync.test.ts.
+- Email integration: src/lib/email/client.ts, templates.ts, and notify.ts.
+- Booking lifecycle wiring: src/lib/bookings/create.ts and operations.ts.
+- Tests: src/lib/email/client.test.ts, templates.test.ts, notify.test.ts, plus the existing booking create/operations integration tests.
+- Environment/test configuration: src/lib/env.ts, .env.example, and vitest.config.mts.
+- No client-facing pages or routes changed.
 - Documentation: docs/SETUP.md and docs/HANDOFF.md.
 
 ## Database changes
 
 - No migration or generated type change.
-- Reused calendar_connections and bookings.google_event_id/calendar_sync_status from 0001_initial_schema.sql.
-- calendar_connections remains RLS-enabled with no client policies; only the service role can read or write encrypted tokens.
+- Reused notification_log, the notification_type enum, and the unique (booking_id, notification_type) index from 0001_initial_schema.sql.
+- notification_log remains RLS-enabled; writes continue through the trusted service-role client.
 
 ## Commands run
 
@@ -38,21 +35,23 @@
 - npm run test
 - npm run build
 - npx supabase test db
-- npx vitest run src/lib/calendar
+- npx vitest run src/lib/email
+- npx vitest run src/lib/email src/lib/bookings/create.integration.test.ts src/lib/bookings/operations.integration.test.ts
 
 ## Tests
 
-- Vitest: 53 passing tests total. The 10 calendar tests cover encryption round-trip/tamper rejection, OAuth state validity/tamper/expiry, safe connection status, refresh persistence, fail-open busy reads, and synced/failed/not-connected transitions with no live Google calls.
+- Vitest: 67 passing tests total. Slice 2 covers all seven templates, Manila datetime rendering, escaping, unsafe URL rejection, the no-key development fallback, Resend request shape, idempotency, contained failures, recipient routing, and all five local-Supabase lifecycle triggers.
 - pgTAP: 40 passing assertions across the existing Phase 2-4 RLS, booking overlap, operation guard, and storage suites.
-- Production build: passed with the connect, callback, and calendar-connections routes included.
-- Live Google OAuth was not exercised because this environment has no real Google credentials or deployed callback URL; setup steps are documented for deployment verification.
+- Production build: passed with no RESEND_API_KEY configured and no new routes.
+- Live Resend delivery was not exercised because this environment has no real Resend credentials or verified sender domain; production setup is documented.
 
 ## Known issues
 
 - Google Calendar live consent and event behavior still require verification after real credentials and the production redirect URI are configured.
+- Real Resend delivery still requires RESEND_API_KEY plus an EMAIL_FROM address on a verified domain.
 - Payment verification remains manual through Facebook Messenger.
-- Resend email and Vercel Cron reminders are intentionally not implemented in this slice.
+- Vercel Cron reminder scheduling is intentionally not implemented in this slice.
 
 ## Recommended next task
 
-**Phase 5 Slice 2 - Email.** Add the seven Resend transactional messages with idempotent notification_log writes. Keep Cron reminders for Slice 3.
+**Phase 5 Slice 3 - Cron reminders.** Add Vercel Cron processing for the existing reminder_24h and reminder_2h templates with idempotent notification_log claims.

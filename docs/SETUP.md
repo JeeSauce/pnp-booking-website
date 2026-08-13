@@ -1,6 +1,6 @@
 # Setup — Poin't & Polish Booking Website
 
-This guide gets the app running locally and connects it to Supabase and Google Calendar. It reflects **Phase 5 Slice 1**: foundation, auth, RLS, admin setup, Manila-time availability, public booking, operations, and encrypted per-technician Google Calendar sync.
+This guide gets the app running locally and connects it to Supabase, Google Calendar, and Resend email. It reflects **Phase 5 Slice 2**: foundation, auth, RLS, admin setup, Manila-time availability, public booking, operations, encrypted per-technician Google Calendar sync, and idempotent transactional email.
 
 ## Prerequisites
 
@@ -8,7 +8,7 @@ This guide gets the app running locally and connects it to Supabase and Google C
 - **npm** 9+
 - A **Supabase** project (free tier is fine)
 - A Google Cloud project and OAuth web client for calendar connections
-- Optional for later slices: Resend account and Vercel
+- A Resend account and verified sending domain for production email (optional locally)
 
 ## 1. Install dependencies
 
@@ -117,7 +117,38 @@ Start the app, sign in as each staff member, and open /dashboard/calendar-connec
 
 Google free/busy reads fail open: if Google is unavailable, the app still computes slots from studio rules, blocks, and confirmed database bookings. Calendar event sync failures do not roll back bookings; owners see a Sync warnings count and can retry from booking details.
 
-## 6. Run the app
+## 6. Configure Resend email
+
+Slice 2 sends transactional booking email through the Resend REST API without an SDK.
+Create a Resend account, verify a sending domain, and create an API key with sending access.
+
+For production, set both values in Vercel and in any local environment where real
+delivery is intentionally enabled:
+
+- `RESEND_API_KEY`: the secret Resend API key. Keep it server-only.
+- `EMAIL_FROM`: a sender on the verified domain, for example
+  `Poin't & Polish <bookings@your-domain.com>`.
+
+The recipient for `new_booking_admin` comes from **Dashboard > Business settings >
+Notification email**. Client messages use the validated email stored on the booking.
+
+When `RESEND_API_KEY` is absent or blank, the app uses a network-free development
+logger. It records the recipient and subject locally and writes a development message
+ID to `notification_log`; it does not deliver a real email and does not require
+`EMAIL_FROM`. This fallback keeps local booking and test flows working without Resend
+credentials.
+
+Slice 2 includes seven templates:
+
+- Booking confirmation and new-booking admin notification after booking creation
+- Payment verified after the owner verifies a payment
+- Studio cancellation and reschedule notices after those owner operations
+- 24-hour and 2-hour reminder templates
+
+The reminder templates are intentionally not scheduled yet. Vercel Cron reminder
+processing belongs to Phase 5 Slice 3.
+
+## 7. Start the app
 
 ```bash
 npm run dev
