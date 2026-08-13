@@ -106,6 +106,23 @@ describeLocal("atomic booking creation (local Supabase)", () => {
 
     expect(first.ok).toBe(true);
     expect(stale).toMatchObject({ ok: false, kind: "conflict" });
+    if (!first.ok) throw new Error("The first booking was not created.");
+    const { data: booking } = await admin
+      .from("bookings")
+      .select("id")
+      .eq("booking_code", first.bookingCode)
+      .single();
+    const { data: notifications } = await admin
+      .from("notification_log")
+      .select("notification_type,status")
+      .eq("booking_id", booking?.id ?? "");
+
+    expect(notifications).toEqual(
+      expect.arrayContaining([
+        { notification_type: "booking_confirmation", status: "sent" },
+        { notification_type: "new_booking_admin", status: "sent" },
+      ]),
+    );
   });
 
   it("allows exactly one success for simultaneous overlapping requests", async () => {

@@ -7,6 +7,7 @@ import {
   syncBookingCreated,
   syncBookingRescheduled,
 } from "@/lib/calendar/sync";
+import { sendBookingEmail } from "@/lib/email/notify";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Profile } from "@/types/database";
 import type {
@@ -84,6 +85,9 @@ export async function updateBookingPayment(
       kind: "invalid_state",
       message: "Payment status changed. Refresh and try again.",
     };
+  }
+  if (input.payment_status === "verified") {
+    await sendBookingEmail(data.id, "payment_verified", { admin });
   }
   return { ok: true };
 }
@@ -168,7 +172,10 @@ export async function cancelBookingByAdmin(
       message: "Booking status changed. Refresh and try again.",
     };
   }
-  await syncBookingCancelled(data.id, { admin });
+  await Promise.all([
+    syncBookingCancelled(data.id, { admin }),
+    sendBookingEmail(data.id, "cancelled_by_admin", { admin }),
+  ]);
   return { ok: true };
 }
 
@@ -250,11 +257,14 @@ export async function rescheduleBookingByAdmin(
       message: "Booking status changed. Refresh and try again.",
     };
   }
-  await syncBookingRescheduled(data.id, {
-    admin,
-    previousTechnicianId: booking.technician_id,
-    previousGoogleEventId: booking.google_event_id,
-  });
+  await Promise.all([
+    syncBookingRescheduled(data.id, {
+      admin,
+      previousTechnicianId: booking.technician_id,
+      previousGoogleEventId: booking.google_event_id,
+    }),
+    sendBookingEmail(data.id, "rescheduled_by_admin", { admin }),
+  ]);
   return { ok: true };
 }
 

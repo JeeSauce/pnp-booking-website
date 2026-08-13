@@ -29,7 +29,7 @@ export const serverEnv = {
     return required("CRON_SECRET", process.env.CRON_SECRET);
   },
   get resendApiKey() {
-    return required("RESEND_API_KEY", process.env.RESEND_API_KEY);
+    return process.env.RESEND_API_KEY || undefined;
   },
   get emailFrom() {
     return required("EMAIL_FROM", process.env.EMAIL_FROM);

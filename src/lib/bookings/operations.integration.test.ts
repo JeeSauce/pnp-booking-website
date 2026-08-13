@@ -158,6 +158,14 @@ describeLocal("Phase 4 booking operations (local Supabase)", () => {
       .single();
     expect(result).toEqual({ ok: true });
     expect(data?.payment_status).toBe("verified");
+    const { data: notification } = await admin
+      .from("notification_log")
+      .select("status")
+      .eq("booking_id", bookings.get("source") ?? "")
+      .eq("notification_type", "payment_verified")
+      .single();
+
+    expect(notification).toEqual({ status: "sent" });
   });
 
   it("allows completion and no-show only from confirmed bookings", async () => {
@@ -228,6 +236,14 @@ describeLocal("Phase 4 booking operations (local Supabase)", () => {
       DateTime.fromISO(data?.ends_at ?? "").diff(DateTime.fromISO(data?.starts_at ?? ""), "minutes")
         .minutes,
     ).toBe(120);
+    const { data: notification } = await admin
+      .from("notification_log")
+      .select("status")
+      .eq("booking_id", bookings.get("source") ?? "")
+      .eq("notification_type", "rescheduled_by_admin")
+      .single();
+
+    expect(notification).toEqual({ status: "sent" });
   });
 
   it("frees a cancelled booking slot for a new booking", async () => {
@@ -235,5 +251,13 @@ describeLocal("Phase 4 booking operations (local Supabase)", () => {
     const replacement = await createBooking(bookingInput("12:00"), { admin, now: injectedNow });
     expect(cancelled).toEqual({ ok: true });
     expect(replacement.ok).toBe(true);
+    const { data: notification } = await admin
+      .from("notification_log")
+      .select("status")
+      .eq("booking_id", bookings.get("cancel") ?? "")
+      .eq("notification_type", "cancelled_by_admin")
+      .single();
+
+    expect(notification).toEqual({ status: "sent" });
   });
 });

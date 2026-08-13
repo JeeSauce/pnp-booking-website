@@ -15,6 +15,8 @@ export default defineConfig(({ mode }) => {
         NEXT_PUBLIC_SUPABASE_ANON_KEY: testEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
         SUPABASE_SERVICE_ROLE_KEY: testEnv.SUPABASE_SERVICE_ROLE_KEY,
         CALENDAR_TOKEN_ENCRYPTION_KEY: testEnv.CALENDAR_TOKEN_ENCRYPTION_KEY,
+        RESEND_API_KEY: "",
+        EMAIL_FROM: "",
       },
     },
     resolve: {

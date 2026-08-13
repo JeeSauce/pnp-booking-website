@@ -3,6 +3,7 @@ import "server-only";
 import { DateTime } from "luxon";
 import { loadBookingAvailability } from "@/lib/bookings/availability";
 import { syncBookingCreated } from "@/lib/calendar/sync";
+import { sendBookingEmail } from "@/lib/email/notify";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { BookingSubmission } from "@/lib/validation/booking";
 
@@ -118,6 +119,10 @@ export async function createBooking(
     return { ok: false, kind: "error", message: "Your booking could not be confirmed." };
   }
 
-  await syncBookingCreated(data.id, { admin });
+  await Promise.all([
+    syncBookingCreated(data.id, { admin }),
+    sendBookingEmail(data.id, "booking_confirmation", { admin }),
+    sendBookingEmail(data.id, "new_booking_admin", { admin }),
+  ]);
   return { ok: true, bookingCode: data.booking_code };
 }
