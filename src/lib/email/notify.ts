@@ -15,9 +15,21 @@ export type BookingEmailRecord = BookingEmailTemplateData & {
 export type NotificationClaim =
   { claimed: true; logId: string } | { claimed: false; reason: "duplicate" };
 
+export type NotificationClaimOptions = {
+  allowRetry?: boolean;
+  now?: Date;
+};
+
+const STALE_PENDING_MINUTES = 30;
+
 export interface BookingEmailRepository {
   getBooking(bookingId: string): Promise<BookingEmailRecord | null>;
-  claim(bookingId: string, type: NotificationType, recipient: string): Promise<NotificationClaim>;
+  claim(
+    bookingId: string,
+    type: NotificationType,
+    recipient: string,
+    options?: NotificationClaimOptions,
+  ): Promise<NotificationClaim>;
   markSent(logId: string, providerMessageId: string, sentAt: string): Promise<void>;
   markFailed(logId: string): Promise<void>;
 }
@@ -68,7 +80,7 @@ export function createBookingEmailRepository(
       };
     },
 
-    async claim(bookingId, type, recipient) {
+    async claim(bookingId, type, recipient, options = {}) {
       const { data, error } = await admin
         .from("notification_log")
         .insert({
@@ -79,6 +91,42 @@ export function createBookingEmailRepository(
         })
         .select("id")
         .single();
+      if (error?.code === "23505" && options.allowRetry) {
+        const claimedAt = options.now ?? new Date();
+        const retryValues = {
+          status: "pending",
+          recipient,
+          sent_at: null,
+          provider_message_id: null,
+          created_at: claimedAt.toISOString(),
+        };
+
+        const failedRetry = await admin
+          .from("notification_log")
+          .update(retryValues)
+          .eq("booking_id", bookingId)
+          .eq("notification_type", type)
+          .eq("status", "failed")
+          .select("id")
+          .maybeSingle();
+        if (failedRetry.error) throw new Error("Email notification retry could not be claimed.");
+        if (failedRetry.data) return { claimed: true, logId: failedRetry.data.id };
+
+        const staleBefore = new Date(
+          claimedAt.getTime() - STALE_PENDING_MINUTES * 60 * 1_000,
+        ).toISOString();
+        const pendingRetry = await admin
+          .from("notification_log")
+          .update(retryValues)
+          .eq("booking_id", bookingId)
+          .eq("notification_type", type)
+          .eq("status", "pending")
+          .lt("created_at", staleBefore)
+          .select("id")
+          .maybeSingle();
+        if (pendingRetry.error) throw new Error("Email notification retry could not be claimed.");
+        if (pendingRetry.data) return { claimed: true, logId: pendingRetry.data.id };
+      }
       if (error?.code === "23505") return { claimed: false, reason: "duplicate" };
       if (error || !data) throw new Error("Email notification claim could not be recorded.");
       return { claimed: true, logId: data.id };
@@ -107,6 +155,7 @@ export type BookingEmailDependencies = {
   repository?: BookingEmailRepository;
   client?: EmailClient;
   now?: () => Date;
+  allowRetry?: boolean;
 };
 
 export type BookingEmailResult = { status: "sent" | "skipped" | "failed" };
@@ -137,7 +186,10 @@ export async function sendBookingEmail(
       return { status: "skipped" };
     }
 
-    const claim = await getRepository().claim(bookingId, type, recipient);
+    const claim = await getRepository().claim(bookingId, type, recipient, {
+      allowRetry: dependencies.allowRetry,
+      now: (dependencies.now ?? (() => new Date()))(),
+    });
     if (!claim.claimed) return { status: "skipped" };
     logId = claim.logId;
 

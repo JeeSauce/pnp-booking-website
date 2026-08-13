@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => {
         CALENDAR_TOKEN_ENCRYPTION_KEY: testEnv.CALENDAR_TOKEN_ENCRYPTION_KEY,
         RESEND_API_KEY: "",
         EMAIL_FROM: "",
+        CRON_SECRET: "test-cron-secret",
       },
     },
     resolve: {
