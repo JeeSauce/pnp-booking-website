@@ -1,6 +1,10 @@
 # Setup — Poin't & Polish Booking Website
 
-This guide gets the app running locally and connects it to Supabase, Google Calendar, and Resend email. It reflects **Phase 5 Slice 2**: foundation, auth, RLS, admin setup, Manila-time availability, public booking, operations, encrypted per-technician Google Calendar sync, and idempotent transactional email.
+This guide gets the app running locally and connects it to Supabase, Google Calendar,
+Resend email, and Vercel Cron. It reflects **Phase 5 Slice 3**: foundation, auth, RLS,
+admin setup, Manila-time availability, public booking, operations, encrypted
+per-technician Google Calendar sync, idempotent transactional email, and scheduled
+24-hour/2-hour reminders.
 
 ## Prerequisites
 
@@ -9,6 +13,7 @@ This guide gets the app running locally and connects it to Supabase, Google Cale
 - A **Supabase** project (free tier is fine)
 - A Google Cloud project and OAuth web client for calendar connections
 - A Resend account and verified sending domain for production email (optional locally)
+- A Vercel plan that supports the configured sub-daily Cron schedule
 
 ## 1. Install dependencies
 
@@ -71,7 +76,8 @@ In the Supabase dashboard → **SQL Editor**, run these files in order:
 3. `supabase/migrations/0003_storage.sql`
 4. `supabase/migrations/0004_harden_database_access.sql`
 5. `supabase/migrations/0005_booking_operation_guards.sql`
-6. `supabase/seed.sql`
+6. `supabase/migrations/0006_reminder_candidate_index.sql`
+7. `supabase/seed.sql`
 
 ## 4. Create staff accounts
 
@@ -145,10 +151,44 @@ Slice 2 includes seven templates:
 - Studio cancellation and reschedule notices after those owner operations
 - 24-hour and 2-hour reminder templates
 
-The reminder templates are intentionally not scheduled yet. Vercel Cron reminder
-processing belongs to Phase 5 Slice 3.
+## 7. Configure Vercel Cron reminders
 
-## 7. Start the app
+`vercel.json` invokes `GET /api/cron/reminders` every 30 minutes with this schedule:
+
+```text
+*/30 * * * *
+```
+
+The interval is timezone-independent; the job converts all reminder window math to
+`Asia/Manila`. It processes both the 24-hour window (23-25 hours before the booking)
+and the 2-hour window (1.5-2.5 hours before the booking) in one run. The half-hour
+schedule requires a Vercel plan that supports sub-daily Cron jobs.
+
+Generate a long secret, set it as `CRON_SECRET` in the Vercel project's **Production**
+environment, and redeploy:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+Vercel sends that value as `Authorization: Bearer $CRON_SECRET`. The route returns 401
+for a missing or incorrect value. Keep `CRON_SECRET` server-only; never expose it as a
+`NEXT_PUBLIC_*` variable. Cron jobs run against production deployments, not preview
+deployments.
+
+For an intentional local smoke test, start the app and call the route with the same
+secret stored in `.env.local`:
+
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/reminders
+```
+
+Each run returns `{ considered, sent, skipped, failed }`. A successful reminder is
+never sent again. Failed reminders and `pending` claims older than 30 minutes may be
+retried; one failed send does not stop the rest of the batch. With no `RESEND_API_KEY`,
+the existing development logger is used, so local runs make no email network calls.
+
+## 8. Start the app
 
 ```bash
 npm run dev
@@ -227,3 +267,6 @@ cancelled-slot release, and private reference-photo access.
 - `promote_to_owner` is executable only by the service role. New Auth users cannot
   promote themselves through signup metadata.
 - Never commit `.env.local`. Only `.env.example` is tracked.
+- `CRON_SECRET` is read only by the server route and must match the production Vercel
+  environment value. `SUPABASE_SERVICE_ROLE_KEY` remains confined to trusted server
+  modules used by the reminder runner; neither secret is returned to the browser.
