@@ -119,3 +119,77 @@ technician's own calendar-connection page.
       new Vitest coverage for crypto/refresh/busy/sync/oauth.
 - [ ] `.env.example`, `docs/SETUP.md`, and `docs/HANDOFF.md` updated (incl. how to create
       the Google OAuth client and the token key).
+
+---
+
+## Slice 2 — Email (Resend)
+
+Status: **not started** (Slice 1 complete + merged). Follows the same patterns as Slice 1:
+external calls behind a mockable interface, orchestration unit-tested with a fake, DB
+authoritative, best-effort sends that never break a booking/operation.
+
+### Decisions (defaults — following Slice 1's conventions)
+
+- **Client:** a thin `fetch` client over the Resend REST API (`POST
+  https://api.resend.com/emails`) behind an `EmailClient` interface, plus a **fake** for
+  tests. No `resend` SDK dependency. When `RESEND_API_KEY` is unset (local dev), fall
+  back to a **dev logger** that records the email instead of sending — so the app runs
+  and tests pass without a key.
+- **Idempotency:** use the existing `notification_log` unique index
+  `(booking_id, notification_type)` as the guard. **Insert-first**: attempt to insert a
+  `pending` row; a unique-violation means it's already been sent/attempted → skip. On
+  success, update the row to `sent` with `provider_message_id`; on failure set `failed`
+  (retryable). Never send the same `(booking, type)` twice.
+- **Failure mode:** email send is best-effort and post-commit — a failure is logged and
+  recorded as `failed` in `notification_log`, and never rolls back or fails the
+  triggering booking/operation (same guarantee as calendar sync).
+
+### The 7 messages (PROJECT_BRIEF → Notifications)
+
+Event-triggered in this slice: `booking_confirmation` (client) + `new_booking_admin`
+(to `business_settings.notification_email`) on booking creation; `payment_verified`
+(client) on owner verify; `cancelled_by_admin` (client) on cancel; `rescheduled_by_admin`
+(client) on reschedule. Build the `reminder_24h` + `reminder_2h` **templates** here too,
+but their scheduling/trigger is Slice 3 (Vercel Cron) — do not wire a scheduler now.
+
+### Modules (`src/lib/email/`)
+
+- `client.ts` — `EmailClient` interface (`send`), real Resend `fetch` impl, dev-logger
+  fallback, and a fake for tests. Uses `serverEnv.resendApiKey` / `serverEnv.emailFrom`.
+- `templates.ts` — one function per message returning `{ subject, html, text }`. Branded
+  but email-safe (inline CSS, web-safe fonts, burgundy palette; Asia/Manila datetimes via
+  the existing Luxon helpers). No external images beyond an optional hosted logo.
+- `notify.ts` — `sendBookingEmail(bookingId, type, deps)`: loads booking + recipient,
+  runs the insert-first idempotency guard, renders the template, sends, and records the
+  result. Never throws into the caller. Owner-only `retryFailedEmail` if useful.
+
+### Integration points
+
+- `create.ts` → send `booking_confirmation` + `new_booking_admin` after the committed
+  insert (alongside the existing calendar sync; both best-effort).
+- `operations.ts` → `payment_verified` after a successful verify; `cancelled_by_admin`
+  after cancel; `rescheduled_by_admin` after reschedule.
+- All post-commit and best-effort.
+
+### Testing (Vitest, with the fake `EmailClient`)
+
+- Idempotency: a second `sendBookingEmail(booking, type)` does not send twice
+  (unique-violation → skip).
+- Failure path: client throws → `notification_log` row `failed`, caller unaffected.
+- Each template renders subject/html/text with correct Manila datetimes and no leaked
+  internals.
+- Dev-logger fallback used when no API key; no live network calls in tests.
+
+### Out of scope for Slice 2
+
+Cron reminder scheduling (Slice 3). No new client-facing pages.
+
+### Definition of done (Slice 2)
+
+- [ ] All 7 templates built; the 5 event-triggered emails send on their events.
+- [ ] Idempotent via `notification_log`; no duplicate `(booking, type)` sends.
+- [ ] Send failures are recorded and never break the booking/operation.
+- [ ] Runs and tests pass with no `RESEND_API_KEY` (dev-logger fallback).
+- [ ] `format` · `lint` · `typecheck` · `test` · `build` and `supabase test db` pass;
+      new Vitest coverage for idempotency, failure, and each template.
+- [ ] `.env.example`, `docs/SETUP.md`, `docs/HANDOFF.md` updated (Resend setup + `EMAIL_FROM`).
