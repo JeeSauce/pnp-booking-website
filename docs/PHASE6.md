@@ -54,8 +54,10 @@ whole thing end to end. Work top to bottom.
 - [ ] Set `NEXT_PUBLIC_APP_URL` and `GOOGLE_OAUTH_REDIRECT_URL` to the **real domain**,
       and make sure that same callback URL is in the Google client (step 2). Redeploy if
       you changed them after the first deploy.
-- [ ] Confirm the Cron job registered (Vercel → Project → Cron). The `*/30 * * * *`
-      schedule needs a plan that allows sub-daily crons.
+- [ ] Reminders: this repo ships **without** a `vercel.json` cron (Vercel Hobby only
+      allows once-daily crons). On Hobby, schedule an external caller to hit
+      `GET /api/cron/reminders` every 30 min with `Authorization: Bearer <CRON_SECRET>`
+      (see SETUP.md §7). On Pro, add the `vercel.json` cron from SETUP.md §7 instead.
 
 ### Environment variables (all required for full functionality)
 

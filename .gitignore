@@ -34,6 +34,12 @@ yarn-error.log*
 .env*
 !.env.example
 
+# local secret scratch files — NEVER commit
+pnp-booking-keys.txt
+pnp-booking-keys-and-tokens.txt
+*keys*.txt
+*secrets*.txt
+
 # supabase local
 /supabase/.branches
 /supabase/.temp

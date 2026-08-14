@@ -151,18 +151,29 @@ Slice 2 includes seven templates:
 - Studio cancellation and reschedule notices after those owner operations
 - 24-hour and 2-hour reminder templates
 
-## 7. Configure Vercel Cron reminders
+## 7. Schedule the reminder job
 
-`vercel.json` invokes `GET /api/cron/reminders` every 30 minutes with this schedule:
+`GET /api/cron/reminders` runs the 24-hour and 2-hour reminder pass. Call it about
+every 30 minutes. The endpoint is timezone-independent; the job converts all window
+math to `Asia/Manila` and handles the 24-hour window (23-25h before the booking) and
+the 2-hour window (1.5-2.5h before) in one run. Because each window is wider than the
+call interval, a ~30-minute cadence catches every booking.
 
-```text
-*/30 * * * *
+**On Vercel Hobby (no `vercel.json` cron):** the Hobby plan only allows once-per-day
+cron jobs, which is too coarse for a 2-hour reminder, so this repo ships **without** a
+`vercel.json` cron. Trigger the endpoint with a free external scheduler instead — e.g.
+[cron-job.org](https://cron-job.org) or a GitHub Actions scheduled workflow — set to
+`GET https://YOUR_DOMAIN/api/cron/reminders` every 30 minutes with the header
+`Authorization: Bearer <CRON_SECRET>`.
+
+**On Vercel Pro:** you can use the native scheduler instead of an external one. Add a
+`vercel.json` at the repo root and redeploy:
+
+```json
+{ "crons": [ { "path": "/api/cron/reminders", "schedule": "*/30 * * * *" } ] }
 ```
 
-The interval is timezone-independent; the job converts all reminder window math to
-`Asia/Manila`. It processes both the 24-hour window (23-25 hours before the booking)
-and the 2-hour window (1.5-2.5 hours before the booking) in one run. The half-hour
-schedule requires a Vercel plan that supports sub-daily Cron jobs.
+Vercel then sends `Authorization: Bearer $CRON_SECRET` automatically.
 
 Generate a long secret, set it as `CRON_SECRET` in the Vercel project's **Production**
 environment, and redeploy:
